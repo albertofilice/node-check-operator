@@ -1,0 +1,196 @@
+apiVersion: nodecheck.openshift.io/v1alpha1
+kind: NodeCheck
+metadata:
+  name: nodecheck-sample
+  namespace: default
+spec:
+  # NodeName specifies which node to check
+  nodeName: "worker-node-1"
+  
+  # CheckInterval defines how often to run checks (in minutes)
+  checkInterval: 5
+  
+  # System-level checks
+  systemChecks:
+    # Uptime and load monitoring
+    uptime: true
+    
+    # Process monitoring
+    processes: true
+    
+    # Resource monitoring (CPU, memory, I/O)
+    resources: true
+    
+    # Service status checks
+    services: true
+    
+    # Memory monitoring
+    memory: true
+    
+    # Uninterruptible tasks monitoring (Linux load averages)
+    uninterruptibleTasks: true
+    
+    # File descriptor usage monitoring
+    fileDescriptors: true
+    
+    # Zombie processes monitoring
+    zombieProcesses: true
+    
+    # NTP/chrony synchronization status
+    ntpSync: true
+    
+    # Kernel panics monitoring
+    kernelPanics: true
+    
+    # OOM killer events monitoring
+    oomKiller: true
+    
+    # CPU frequency scaling and throttling
+    cpuFrequency: true
+    
+    # Interrupt distribution across CPU cores
+    interruptsBalance: true
+    
+    # CPU steal time (important in virtualized environments)
+    cpuStealTime: true
+    
+    # Memory fragmentation monitoring
+    memoryFragmentation: true
+    
+    # Swap activity monitoring (not just presence)
+    swapActivity: true
+    
+    # Context switch rate monitoring
+    contextSwitches: true
+    
+    # SELinux status
+    selinuxStatus: true
+    
+    # SSH access and configuration
+    sshAccess: true
+    
+    # Kernel modules monitoring
+    kernelModules: true
+    
+    # Hardware monitoring
+    hardware:
+      # Temperature monitoring (requires lm-sensors)
+      temperature: true
+      
+      # IPMI monitoring (requires ipmitool)
+      ipmi: true
+      
+      # BMC monitoring (requires ipmitool)
+      bmc: true
+      
+      # Fan status monitoring (requires ipmitool)
+      fanStatus: true
+      
+      # Power supply status monitoring (requires ipmitool)
+      powerSupply: true
+      
+      # Memory errors (ECC/MCE/EDAC) monitoring
+      memoryErrors: true
+      
+      # PCIe errors monitoring
+      pcieErrors: true
+      
+      # CPU microcode version
+      cpuMicrocode: true
+    
+    # Disk monitoring
+    disks:
+      # Disk space monitoring
+      space: true
+      
+      # SMART disk health monitoring (requires smartmontools)
+      smart: true
+      
+      # Disk performance monitoring (requires sysstat)
+      performance: true
+      
+      # RAID monitoring
+      raid: true
+      
+      # Physical Volumes (LVM - pvs command)
+      pvs: true
+      
+      # Logical Volumes and Volume Groups (LVM - lvs/vgs commands)
+      lvm: true
+      
+      # Disk I/O wait time monitoring
+      ioWait: true
+      
+      # Disk I/O queue depth monitoring
+      queueDepth: true
+      
+      # Filesystem errors monitoring
+      filesystemErrors: true
+      
+      # Inode usage monitoring
+      inodeUsage: true
+      
+      # Mount points status monitoring
+      mountPoints: true
+    
+    # Network monitoring
+    network:
+      # Interface monitoring
+      interfaces: true
+      
+      # Routing checks
+      routing: true
+      
+      # Connectivity tests
+      connectivity: true
+      
+      # Network statistics
+      statistics: true
+      
+      # Network interface errors monitoring
+      errors: true
+      
+      # Network latency to gateway/DNS
+      latency: true
+      
+      # DNS resolution testing
+      dnsResolution: true
+      
+      # Network bonding status
+      bondingStatus: true
+      
+      # Firewall rules monitoring
+      firewallRules: true
+    
+    # System logs monitoring
+    systemLogs: true
+  
+  # Kubernetes-level checks
+  kubernetesChecks:
+    # Node status checks
+    nodeStatus: true
+    
+    # Pod monitoring
+    pods: true
+    
+    # Cluster operators monitoring (OpenShift)
+    clusterOperators: true
+    
+    # Node resources monitoring (requests, limits, overcommit)
+    nodeResources: true
+    
+    # Node resource usage monitoring (real-time consumption via metrics-server)
+    nodeResourceUsage: true
+    
+    # Container runtime health (containerd/CRI-O/Docker)
+    containerRuntime: true
+    
+    # Kubelet health endpoint
+    kubeletHealth: true
+    
+    # CNI plugin status
+    cniPlugin: true
+    
+    # Node conditions detailed check
+    nodeConditions: true
+    

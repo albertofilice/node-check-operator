@@ -1,0 +1,48 @@
+[
+  {
+    "type": "console.page/route",
+    "properties": {
+      "exact": true,
+      "path": "/nodecheck",
+      "component": {
+        "$codeRef": "NodeCheckOverview"
+      }
+    }
+  },
+  {
+    "type": "console.navigation/href",
+    "properties": {
+      "id": "nodecheck",
+      "href": "/nodecheck",
+      "name": "Node Check",
+      "perspective": "admin",
+      "section": "observe"
+    }
+  },
+  {
+    "type": "console.resource/list",
+    "properties": {
+      "model": {
+        "group": "nodecheck.openshift.io",
+        "version": "v1alpha1",
+        "kind": "NodeCheck"
+      },
+      "component": {
+        "$codeRef": "NodeCheckOverview"
+      }
+    }
+  },
+  {
+    "type": "console.resource/details",
+    "properties": {
+      "model": {
+        "group": "nodecheck.openshift.io",
+        "version": "v1alpha1",
+        "kind": "NodeCheck"
+      },
+      "component": {
+        "$codeRef": "NodeCheckOverview"
+      }
+    }
+  }
+]

@@ -1,0 +1,17 @@
+apiVersion: v2
+name: node-check-operator
+description: Helm chart to deploy the Node Check Operator and console plugin
+type: application
+version: 0.1.0
+appVersion: "1.0.7"
+keywords:
+  - node
+  - observability
+  - openshift
+  - kubernetes
+sources:
+  - https://github.com/albertofilice/node-check-operator
+maintainers:
+  - name: Node Check Operator
+    email: example@example.com
+

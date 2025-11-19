@@ -1,0 +1,49 @@
+apiVersion: nodecheck.openshift.io/v1alpha1
+kind: NodeCheck
+metadata:
+  name: nodecheck-worker-nodes
+  namespace: default
+spec:
+  # Use "*" to check all nodes that match the NodeSelector
+  nodeName: "*"
+  
+  # CheckInterval defines how often to run checks (in minutes)
+  checkInterval: 10
+  
+  # NodeSelector filters which nodes get child NodeChecks created
+  # Only worker nodes will be checked
+  nodeSelector:
+    node-role.kubernetes.io/worker: ""
+  
+  # Tolerations allow the executor DaemonSet to run on tainted nodes
+  # This example tolerates master/control-plane taints
+  tolerations:
+  - key: "node-role.kubernetes.io/master"
+    operator: "Exists"
+    effect: "NoSchedule"
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
+  
+  # System-level checks
+  systemChecks:
+    uptime: true
+    processes: true
+    resources: true
+    memory: true
+    uninterruptibleTasks: true
+    hardware:
+      temperature: true
+    disks:
+      space: true
+    network:
+      interfaces: true
+      routing: true
+      connectivity: true
+  
+  # Kubernetes-level checks
+  kubernetesChecks:
+    nodeStatus: true
+    pods: true
+    nodeResources: true
+

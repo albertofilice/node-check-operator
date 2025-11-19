@@ -1,0 +1,5 @@
+resources:
+- ../crd
+- ../rbac
+- ../manager
+# +kubebuilder:scaffold:config

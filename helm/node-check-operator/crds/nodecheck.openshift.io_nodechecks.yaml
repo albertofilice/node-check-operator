@@ -1,0 +1,1334 @@
+# IMPORTANT: This CRD is maintained MANUALLY and is NOT auto-generated.
+# When adding new checks, you MUST update this file manually.
+# See config/crd/README.md for a checklist of all files that need to be updated.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: nodechecks.nodecheck.openshift.io
+spec:
+  group: nodecheck.openshift.io
+  names:
+    kind: NodeCheck
+    listKind: NodeCheckList
+    plural: nodechecks
+    singular: nodecheck
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: NodeCheck is the Schema for the nodechecks API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: NodeCheckSpec defines the desired state of NodeCheck
+            properties:
+              checkInterval:
+                default: 5
+                description: CheckInterval defines how often to run checks (in minutes)
+                maximum: 1440
+                minimum: 1
+                type: integer
+              kubernetesChecks:
+                description: KubernetesChecks defines which Kubernetes-level checks
+                  to perform
+                properties:
+                  cniPlugin:
+                    type: boolean
+                  clusterOperators:
+                    type: boolean
+                  containerRuntime:
+                    type: boolean
+                  kubeletHealth:
+                    type: boolean
+                  nodeConditions:
+                    type: boolean
+                  nodeResources:
+                    type: boolean
+                  nodeResourceUsage:
+                    type: boolean
+                  nodeStatus:
+                    type: boolean
+                  pods:
+                    type: boolean
+                type: object
+              nodeName:
+                description: |-
+                  NodeName specifies which node to check.
+                  - If empty or not specified, each executor pod will automatically detect the node where it's running
+                    and create/update a NodeCheck for that specific node.
+                  - Use "*" or "all" to check all nodes in the cluster (creates child NodeChecks for each node).
+                  - Use a specific node name to check only that node.
+                type: string
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: |-
+                  NodeSelector is a label query over nodes that determines which nodes the executor DaemonSet
+                  should be scheduled on. If specified, the DaemonSet will only run on nodes matching the selector.
+                  When nodeName is "*" or "all", this selector filters which nodes get child NodeChecks created.
+                type: object
+              tolerations:
+                description: |-
+                  Tolerations allow the executor DaemonSet to be scheduled on nodes with matching taints.
+                  If specified, the DaemonSet pods will tolerate the listed taints.
+                items:
+                  description: |-
+                    The pod this Toleration is attached to tolerates any taint that matches
+                    the triple <key,value,effect> using the matching operator <operator>.
+                  properties:
+                    effect:
+                      description: |-
+                        Effect indicates the taint effect to match. Empty means match all taint effects.
+                        When specified, allowed values are NoSchedule, PreferNoSchedule and NoExecute.
+                      type: string
+                    key:
+                      description: |-
+                        Key is the taint key that the toleration applies to. Empty means match all taint keys.
+                        If the key is empty, operator must be Exists; this combination means to match all values and all keys.
+                      type: string
+                    operator:
+                      description: |-
+                        Operator represents a key's relationship to the value.
+                        Valid operators are Exists and Equal. Defaults to Equal.
+                        Exists is equivalent to wildcard for value, so that a pod can
+                        tolerate all taints of a particular category.
+                      type: string
+                    tolerationSeconds:
+                      description: |-
+                        TolerationSeconds represents the period of time the toleration (which must be
+                        of effect NoExecute, otherwise this field is ignored) tolerates the taint. By default,
+                        it is not set, which means tolerate the taint forever (do not evict). Zero and
+                        negative values will be treated as 0 (evict immediately) by the system.
+                      format: int64
+                      type: integer
+                    value:
+                      description: |-
+                        Value is the taint value the toleration matches to.
+                        If the operator is Exists, the value should be empty, otherwise just a regular string.
+                      type: string
+                  type: object
+                type: array
+              systemChecks:
+                description: SystemChecks defines which system-level checks to perform
+                properties:
+                  disks:
+                    description: DiskChecksSpec defines disk monitoring
+                    properties:
+                      filesystemErrors:
+                        type: boolean
+                      inodeUsage:
+                        type: boolean
+                      ioWait:
+                        type: boolean
+                      lvm:
+                        description: Check Logical Volume Manager
+                        type: boolean
+                      mountPoints:
+                        type: boolean
+                      performance:
+                        type: boolean
+                      pvs:
+                        description: Check Physical Volumes (LVM - pvs command)
+                        type: boolean
+                      queueDepth:
+                        type: boolean
+                      raid:
+                        type: boolean
+                      smart:
+                        type: boolean
+                      space:
+                        type: boolean
+                    type: object
+                  hardware:
+                    description: HardwareChecksSpec defines hardware monitoring
+                    properties:
+                      bmc:
+                        type: boolean
+                      cpuMicrocode:
+                        type: boolean
+                      fanStatus:
+                        type: boolean
+                      ipmi:
+                        type: boolean
+                      memoryErrors:
+                        type: boolean
+                      pcieErrors:
+                        type: boolean
+                      powerSupply:
+                        type: boolean
+                      temperature:
+                        type: boolean
+                    type: object
+                  contextSwitches:
+                    type: boolean
+                  cpuFrequency:
+                    type: boolean
+                  cpuStealTime:
+                    type: boolean
+                  fileDescriptors:
+                    type: boolean
+                  interruptsBalance:
+                    type: boolean
+                  kernelModules:
+                    type: boolean
+                  kernelPanics:
+                    type: boolean
+                  memory:
+                    type: boolean
+                  memoryFragmentation:
+                    type: boolean
+                  ntpSync:
+                    type: boolean
+                  oomKiller:
+                    type: boolean
+                  selinuxStatus:
+                    type: boolean
+                  sshAccess:
+                    type: boolean
+                  swapActivity:
+                    type: boolean
+                  uninterruptibleTasks:
+                    type: boolean
+                  zombieProcesses:
+                    type: boolean
+                  network:
+                    description: NetworkChecksSpec defines network monitoring
+                    properties:
+                      bondingStatus:
+                        type: boolean
+                      connectivity:
+                        type: boolean
+                      dnsResolution:
+                        type: boolean
+                      errors:
+                        type: boolean
+                      firewallRules:
+                        type: boolean
+                      interfaces:
+                        type: boolean
+                      latency:
+                        type: boolean
+                      routing:
+                        type: boolean
+                      statistics:
+                        type: boolean
+                    type: object
+                  processes:
+                    type: boolean
+                  resources:
+                    type: boolean
+                  services:
+                    type: boolean
+                  systemLogs:
+                    type: boolean
+                  uptime:
+                    type: boolean
+                type: object
+            type: object
+          status:
+            description: NodeCheckStatus defines the observed state of NodeCheck
+            properties:
+              nodeName:
+                description: NodeName is the name of the node that was checked (mirrored from spec for convenience)
+                type: string
+              checkResults:
+                description: CheckResults contains the results of the checks
+                properties:
+                  kubernetesResults:
+                    description: KubernetesCheckResults contains Kubernetes check results
+                    properties:
+                      clusterOperators:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      nodeResources:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      nodeStatus:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      pods:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      nodeResourceUsage:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      containerRuntime:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      kubeletHealth:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      cniPlugin:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      nodeConditions:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                    type: object
+                  systemResults:
+                    description: SystemCheckResults contains system-level check results
+                    properties:
+                      disks:
+                        description: DiskCheckResults contains disk check results
+                        properties:
+                          performance:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          raid:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          smart:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          space:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          pvs:
+                            description: CheckResult represents the result of a single check (Physical Volumes - LVM)
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          lvm:
+                            description: CheckResult represents the result of a single check (Logical Volume Manager)
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          ioWait:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          queueDepth:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          filesystemErrors:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          inodeUsage:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          mountPoints:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                        type: object
+                      hardware:
+                        description: HardwareCheckResults contains hardware check results
+                        properties:
+                          bmc:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          ipmi:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          temperature:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          fanStatus:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          powerSupply:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          memoryErrors:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          pcieErrors:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          cpuMicrocode:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                        type: object
+                      memory:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      uninterruptibleTasks:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      network:
+                        description: NetworkCheckResults contains network check results
+                        properties:
+                          connectivity:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          interfaces:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          routing:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          statistics:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          errors:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          latency:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          dnsResolution:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          bondingStatus:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                          firewallRules:
+                            description: CheckResult represents the result of a single check
+                            properties:
+                              details:
+                                additionalProperties: true
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              message:
+                                type: string
+                              status:
+                                type: string
+                              timestamp:
+                                format: date-time
+                                type: string
+                            required:
+                            - status
+                            - timestamp
+                            type: object
+                        type: object
+                      processes:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                                format: date-time
+                                type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      resources:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      services:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      systemLogs:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      uptime:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      fileDescriptors:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      zombieProcesses:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      ntpSync:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      kernelPanics:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      oomKiller:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      cpuFrequency:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      interruptsBalance:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      cpuStealTime:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      memoryFragmentation:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      swapActivity:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      contextSwitches:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      selinuxStatus:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      sshAccess:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                      kernelModules:
+                        description: CheckResult represents the result of a single check
+                        properties:
+                          details:
+                            additionalProperties: true
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          message:
+                            type: string
+                          status:
+                            type: string
+                          timestamp:
+                            format: date-time
+                            type: string
+                        required:
+                        - status
+                        - timestamp
+                        type: object
+                    type: object
+                type: object
+              lastCheckTime:
+                format: date-time
+                type: string
+              message:
+                type: string
+              overallStatus:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

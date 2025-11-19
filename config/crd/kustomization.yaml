@@ -1,0 +1,3 @@
+resources:
+- bases/nodecheck.openshift.io_nodechecks.yaml
+# +kubebuilder:scaffold:crdkustomizeresource

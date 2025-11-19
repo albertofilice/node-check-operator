@@ -1,0 +1,108 @@
+apiVersion: nodecheck.openshift.io/v1alpha1
+kind: NodeCheck
+metadata:
+  name: basic-nodecheck
+  namespace: default
+spec:
+  # NodeName specifies which node to check
+  # - If empty, the executor will auto-detect the node where it's running
+  # - Use "*" or "all" to check all nodes (creates child NodeChecks for each node)
+  # - Use a specific node name to check only that node
+  nodeName: "worker-node-1"
+  
+  # CheckInterval defines how often to run checks (in minutes)
+  checkInterval: 5
+  
+  # NodeSelector filters which nodes the executor DaemonSet should run on
+  # When nodeName is "*", this also filters which nodes get child NodeChecks
+  # nodeSelector:
+  #   node-role.kubernetes.io/worker: ""
+  
+  # Tolerations allow the executor DaemonSet to run on tainted nodes
+  # tolerations:
+  # - key: "node-role.kubernetes.io/master"
+  #   operator: "Exists"
+  #   effect: "NoSchedule"
+  
+  # System-level checks
+  systemChecks:
+    # Uptime and load monitoring
+    uptime: true
+    
+    # Process monitoring
+    processes: true
+    
+    # Resource monitoring (CPU, memory, I/O)
+    resources: true
+    
+    # Service status checks
+    services: true
+    
+    # Memory monitoring
+    memory: true
+    
+    # Uninterruptible tasks monitoring (Linux load averages)
+    uninterruptibleTasks: true
+    
+    # Hardware monitoring
+    hardware:
+      # Temperature monitoring (requires lm-sensors)
+      temperature: false
+      
+      # IPMI monitoring (requires ipmitool)
+      ipmi: false
+      
+      # BMC monitoring (requires ipmitool)
+      bmc: false
+    
+    # Disk monitoring
+    disks:
+      # Disk space monitoring
+      space: true
+      
+      # SMART disk health monitoring (requires smartmontools)
+      smart: false
+      
+      # Disk performance monitoring (requires sysstat)
+      performance: false
+      
+      # RAID monitoring
+      raid: false
+      
+      # Physical Volumes (LVM - pvs command)
+      pvs: false
+      
+      # Logical Volumes and Volume Groups (LVM - lvs/vgs commands)
+      lvm: false
+    
+    # Network monitoring
+    network:
+      # Interface monitoring
+      interfaces: true
+      
+      # Routing checks
+      routing: true
+      
+      # Connectivity tests
+      connectivity: true
+      
+      # Network statistics
+      statistics: false
+    
+    # System logs monitoring
+    systemLogs: false
+  
+  # Kubernetes-level checks
+  kubernetesChecks:
+    # Node status checks
+    nodeStatus: true
+    
+    # Pod monitoring
+    pods: true
+    
+    # Resource quota monitoring
+    # Cluster operators monitoring (OpenShift)
+    clusterOperators: true
+    
+    # Node resources monitoring (requests, limits, overcommit)
+    nodeResources: true

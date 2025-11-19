@@ -1,0 +1,40 @@
+apiVersion: nodecheck.openshift.io/v1alpha1
+kind: NodeCheck
+metadata:
+  name: nodecheck-auto-detect
+  namespace: default
+spec:
+  # Empty nodeName means the executor will auto-detect the node where it's running
+  # Each executor pod will update this NodeCheck with its own node name
+  nodeName: ""
+  
+  # CheckInterval defines how often to run checks (in minutes)
+  checkInterval: 5
+  
+  # NodeSelector can be used to control which nodes the executor DaemonSet runs on
+  # In this case, only nodes with the label "node-type=compute" will run executors
+  nodeSelector:
+    node-type: "compute"
+  
+  # Tolerations allow the executor DaemonSet to run on tainted nodes
+  tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "compute"
+    effect: "NoSchedule"
+  
+  # System-level checks
+  systemChecks:
+    uptime: true
+    resources: true
+    memory: true
+    disks:
+      space: true
+    network:
+      interfaces: true
+  
+  # Kubernetes-level checks
+  kubernetesChecks:
+    nodeStatus: true
+    pods: true
+

@@ -1,0 +1,29 @@
+namespace:
+  name: node-check-operator-system
+  create: true
+
+image:
+  repository: quay.io/rh_ee_afilice/node-check-operator
+  tag: v1.0.7
+  pullPolicy: IfNotPresent
+
+consolePluginImage:
+  repository: quay.io/rh_ee_afilice/node-check-operator-console-plugin
+  tag: v1.0.7
+
+replicaCount: 1
+
+enableOpenShiftFeatures: true
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+

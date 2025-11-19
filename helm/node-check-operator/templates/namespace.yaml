@@ -1,0 +1,17 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace.name }}
+  labels:
+    control-plane: controller-manager
+    openshift.io/cluster-monitoring: "true"
+    security.openshift.io/scc.podSecurityLabelSync: "true"
+    pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit-version: latest
+  annotations:
+    security.openshift.io/MinimallySufficientPodSecurityStandard: privileged
+{{- end }}
+

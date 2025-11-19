@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/albertofilice/node-check-operator#readme
+    about: Please check the documentation before opening an issue
+
