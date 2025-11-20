@@ -265,6 +265,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -282,6 +285,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -301,6 +307,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -318,6 +327,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -337,6 +349,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -354,6 +369,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -373,6 +391,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -391,6 +412,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -408,6 +432,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -434,6 +461,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -451,6 +481,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -470,6 +503,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -487,6 +523,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -506,6 +545,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -523,6 +565,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -542,6 +587,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -559,6 +607,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -578,6 +629,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -596,6 +650,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -613,6 +670,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -636,6 +696,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -653,6 +716,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -672,6 +738,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -689,6 +758,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -708,6 +780,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -725,6 +800,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -744,6 +822,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -761,6 +842,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -781,6 +865,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -798,6 +885,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -820,6 +910,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -837,6 +930,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -856,6 +952,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -873,6 +972,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -892,6 +994,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -909,6 +1014,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -928,6 +1036,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -946,6 +1057,9 @@ spec:
                               timestamp:
                                 format: date-time
                                 type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
+                                type: string
                             required:
                             - status
                             - timestamp
@@ -963,6 +1077,9 @@ spec:
                                 type: string
                               timestamp:
                                 format: date-time
+                                type: string
+                              command:
+                                description: Command used to perform this check (useful for debugging)
                                 type: string
                             required:
                             - status
@@ -983,6 +1100,9 @@ spec:
                           timestamp:
                                 format: date-time
                                 type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1000,6 +1120,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -1019,6 +1142,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1036,6 +1162,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -1055,6 +1184,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1072,6 +1204,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -1091,6 +1226,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1108,6 +1246,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -1127,6 +1268,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1144,6 +1288,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -1163,6 +1310,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1180,6 +1330,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -1199,6 +1352,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1216,6 +1372,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -1235,6 +1394,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1252,6 +1414,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status
@@ -1271,6 +1436,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1289,6 +1457,9 @@ spec:
                           timestamp:
                             format: date-time
                             type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
+                            type: string
                         required:
                         - status
                         - timestamp
@@ -1306,6 +1477,9 @@ spec:
                             type: string
                           timestamp:
                             format: date-time
+                            type: string
+                          command:
+                            description: Command used to perform this check (useful for debugging)
                             type: string
                         required:
                         - status

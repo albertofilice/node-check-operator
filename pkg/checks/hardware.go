@@ -31,9 +31,11 @@ func (hc *HardwareChecker) CheckTemperature(ctx context.Context) *v1alpha1.Check
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "sensors")
+	command := "sensors"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sensors")
+		cmd := exec.CommandContext(ctx, command)
 		output, err = cmd.Output()
 		if err != nil {
 			// sensors might not be available, try alternative approach
@@ -44,8 +46,10 @@ func (hc *HardwareChecker) CheckTemperature(ctx context.Context) *v1alpha1.Check
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	sensorsOutput := strings.TrimSpace(string(output))
@@ -113,7 +117,10 @@ func (hc *HardwareChecker) CheckIPMI(ctx context.Context) *v1alpha1.CheckResult 
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "ipmitool sdr elist")
+	command := "ipmitool sdr elist"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil || len(output) == 0 {
 		cmd := exec.CommandContext(ctx, "ipmitool", "sdr", "elist")
 		output, err = cmd.CombinedOutput()
@@ -139,8 +146,10 @@ func (hc *HardwareChecker) CheckIPMI(ctx context.Context) *v1alpha1.CheckResult 
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	ipmiOutput := strings.TrimSpace(string(output))
@@ -198,7 +207,10 @@ func (hc *HardwareChecker) CheckBMC(ctx context.Context) *v1alpha1.CheckResult {
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "ipmitool chassis status")
+	command := "ipmitool chassis status"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil || len(output) == 0 {
 		cmd := exec.CommandContext(ctx, "ipmitool", "chassis", "status")
 		output, err = cmd.CombinedOutput()
@@ -224,8 +236,10 @@ func (hc *HardwareChecker) CheckBMC(ctx context.Context) *v1alpha1.CheckResult {
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	bmcOutput := strings.TrimSpace(string(output))
@@ -283,7 +297,10 @@ func (hc *HardwareChecker) CheckFanStatus(ctx context.Context) *v1alpha1.CheckRe
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "ipmitool sdr type fan 2>/dev/null")
+	command := "ipmitool sdr type fan 2>/dev/null"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		result.Status = "Unknown"
 		result.Message = "Fan status check not available (ipmitool may need access to /dev/ipmi* devices or IPMI hardware not present)"
@@ -291,6 +308,7 @@ func (hc *HardwareChecker) CheckFanStatus(ctx context.Context) *v1alpha1.CheckRe
 		result.Details = mapToRawExtension(details)
 		return result
 	}
+	result.Command = command
 
 	fanOutput := strings.TrimSpace(string(output))
 	details["fan_output"] = fanOutput
@@ -341,7 +359,10 @@ func (hc *HardwareChecker) CheckPowerSupply(ctx context.Context) *v1alpha1.Check
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "ipmitool sdr type 'Power Supply' 2>/dev/null")
+	command := "ipmitool sdr type 'Power Supply' 2>/dev/null"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		result.Status = "Unknown"
 		result.Message = "Power supply check not available (ipmitool may need access to /dev/ipmi* devices or IPMI hardware not present)"
@@ -349,6 +370,7 @@ func (hc *HardwareChecker) CheckPowerSupply(ctx context.Context) *v1alpha1.Check
 		result.Details = mapToRawExtension(details)
 		return result
 	}
+	result.Command = command
 
 	psOutput := strings.TrimSpace(string(output))
 	details["power_supply_output"] = psOutput
@@ -401,17 +423,23 @@ func (hc *HardwareChecker) CheckMemoryErrors(ctx context.Context) *v1alpha1.Chec
 	// Use more specific regex to avoid false positives from network interface names
 	// Match EDAC errors, MCE (Machine Check Exception), or actual memory errors
 	// Exclude lines that contain interface names or MAC addresses
-	output, err := runHostCommand(ctx, "dmesg | grep -iE '\\b(EDAC|MCE|memory error|ecc error)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface)' | tail -50")
+	command := "dmesg | grep -iE '\\b(EDAC|MCE|memory error|ecc error)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface)' | tail -50"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "sh", "-c", "dmesg | grep -iE '\\b(EDAC|MCE|memory error|ecc error)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface)' | tail -50")
 		output, err = cmd.Output()
 		if err != nil {
 			details["check_source"] = "container"
+			result.Command = command
 		} else {
 			details["check_source"] = "host"
+			result.Command = command
 		}
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	memErrorOutput := strings.TrimSpace(string(output))
@@ -472,17 +500,23 @@ func (hc *HardwareChecker) CheckPCIeErrors(ctx context.Context) *v1alpha1.CheckR
 	}
 
 	// Check dmesg for PCIe errors
-	output, err := runHostCommand(ctx, "dmesg | grep -i 'pci.*error\\|pcie.*error\\|aer.*error' | tail -50")
+	command := "dmesg | grep -i 'pci.*error\\|pcie.*error\\|aer.*error' | tail -50"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "sh", "-c", "dmesg | grep -i 'pci.*error\\|pcie.*error\\|aer.*error' | tail -50")
 		output, err = cmd.Output()
 		if err != nil {
 			details["check_source"] = "container"
+			result.Command = command
 		} else {
 			details["check_source"] = "host"
+			result.Command = command
 		}
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	pcieErrorOutput := strings.TrimSpace(string(output))
@@ -522,7 +556,10 @@ func (hc *HardwareChecker) CheckCPUMicrocode(ctx context.Context) *v1alpha1.Chec
 	}
 
 	// Check microcode version from /proc/cpuinfo
-	output, err := runHostCommand(ctx, "grep -m1 microcode /proc/cpuinfo")
+	command := "grep -m1 microcode /proc/cpuinfo"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "sh", "-c", "grep -m1 microcode /proc/cpuinfo")
 		output, err = cmd.Output()
@@ -534,8 +571,10 @@ func (hc *HardwareChecker) CheckCPUMicrocode(ctx context.Context) *v1alpha1.Chec
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	microcodeLine := strings.TrimSpace(string(output))

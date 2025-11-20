@@ -32,7 +32,10 @@ func (dc *DiskChecker) CheckDiskSpace(ctx context.Context) *v1alpha1.CheckResult
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "df -hPT")
+	command := "df -hPT"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "df", "-h")
 		output, err = cmd.Output()
@@ -43,8 +46,10 @@ func (dc *DiskChecker) CheckDiskSpace(ctx context.Context) *v1alpha1.CheckResult
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	dfOutput := strings.TrimSpace(string(output))
@@ -184,7 +189,10 @@ func (dc *DiskChecker) CheckSMART(ctx context.Context) *v1alpha1.CheckResult {
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "lsblk -d -n -o NAME")
+	command := "lsblk -d -n -o NAME"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "lsblk", "-d", "-n", "-o", "NAME")
 		output, err = cmd.Output()
@@ -194,6 +202,9 @@ func (dc *DiskChecker) CheckSMART(ctx context.Context) *v1alpha1.CheckResult {
 			result.Details = mapToRawExtension(details)
 			return result
 		}
+		result.Command = command
+	} else {
+		result.Command = command
 	}
 
 	devices := strings.Split(strings.TrimSpace(string(output)), "\n")
@@ -206,7 +217,9 @@ func (dc *DiskChecker) CheckSMART(ctx context.Context) *v1alpha1.CheckResult {
 			devicePath := "/dev/" + device
 			
 			// Execute smartctl for each device
-			smartOutput, err := runHostCommand(ctx, fmt.Sprintf("smartctl -a %s", devicePath))
+			smartCommand := fmt.Sprintf("smartctl -a %s", devicePath)
+			result.Command = smartCommand
+			smartOutput, err := runHostCommand(ctx, smartCommand)
 			if err != nil {
 				smartCmd := exec.CommandContext(ctx, "smartctl", "-a", devicePath)
 				sOutput, sErr := smartCmd.Output()
@@ -219,6 +232,9 @@ func (dc *DiskChecker) CheckSMART(ctx context.Context) *v1alpha1.CheckResult {
 					continue
 				}
 				smartOutput = sOutput
+				result.Command = smartCommand
+			} else {
+				result.Command = smartCommand
 			}
 
 			smartStr := strings.TrimSpace(string(smartOutput))
@@ -287,7 +303,9 @@ func (dc *DiskChecker) CheckDiskPerformance(ctx context.Context) *v1alpha1.Check
 
 	// iostat -x 1 3: extended stats, 1 second interval, 3 samples
 	// This gives us average statistics over 3 seconds
-	output, err := runHostCommand(ctx, "iostat -x 1 3")
+	command := "iostat -x 1 3"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "iostat", "-x", "1", "3")
 		output, err = cmd.Output()
@@ -300,8 +318,10 @@ func (dc *DiskChecker) CheckDiskPerformance(ctx context.Context) *v1alpha1.Check
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	iostatOutput := strings.TrimSpace(string(output))
@@ -578,7 +598,10 @@ func (dc *DiskChecker) CheckRAID(ctx context.Context) *v1alpha1.CheckResult {
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "cat /proc/mdstat")
+	command := "cat /proc/mdstat"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "cat", "/proc/mdstat")
 		output, err = cmd.Output()
@@ -588,7 +611,11 @@ func (dc *DiskChecker) CheckRAID(ctx context.Context) *v1alpha1.CheckResult {
 			details["error"] = err.Error()
 			result.Details = mapToRawExtension(details)
 			return result
+			return result
 		}
+		result.Command = command
+	} else {
+		result.Command = command
 	}
 
 	mdstatOutput := strings.TrimSpace(string(output))
@@ -711,6 +738,7 @@ func (dc *DiskChecker) CheckPVs(ctx context.Context) *v1alpha1.CheckResult {
 
 	// Check Physical Volumes using pvs command
 	pvsCmd := exec.CommandContext(ctx, "pvs", "--noheadings", "--units", "g", "--separator", "|", "-o", "pv_name,vg_name,pv_size,pv_free,pv_attr")
+	result.Command = "pvs --noheadings --units g --separator '|' -o pv_name,vg_name,pv_size,pv_free,pv_attr"
 	pvsOutput, err := pvsCmd.Output()
 	if err != nil {
 		result.Status = "Warning"
@@ -819,6 +847,7 @@ func (dc *DiskChecker) CheckLVM(ctx context.Context) *v1alpha1.CheckResult {
 
 	// Check if LVM tools are available
 	lvsCmd := exec.CommandContext(ctx, "lvs", "--noheadings", "--units", "g", "--separator", "|", "-o", "lv_name,vg_name,lv_size,lv_attr,lv_health_status")
+	result.Command = "lvs --noheadings --units g --separator '|' -o lv_name,vg_name,lv_size,lv_attr,lv_health_status"
 	lvsOutput, err := lvsCmd.Output()
 	if err != nil {
 		result.Status = "Warning"
@@ -886,6 +915,8 @@ func (dc *DiskChecker) CheckLVM(ctx context.Context) *v1alpha1.CheckResult {
 	vgsCmd := exec.CommandContext(ctx, "vgs", "--noheadings", "--units", "g", "--separator", "|", "-o", "vg_name,vg_size,vg_free,vg_attr")
 	vgsOutput, err := vgsCmd.Output()
 	if err == nil {
+		// Append command info for VG analysis
+		result.Command += " && vgs --noheadings --units g --separator '|' -o vg_name,vg_size,vg_free,vg_attr"
 		vgsStr := strings.TrimSpace(string(vgsOutput))
 		details["vgs_output"] = vgsStr
 
@@ -953,6 +984,7 @@ func (dc *DiskChecker) CheckLVM(ctx context.Context) *v1alpha1.CheckResult {
 			if err != nil {
 				continue
 			}
+			result.Command += fmt.Sprintf(" && lvs --noheadings --units g --separator '|' -o lv_name,lv_size,data_percent %s", vgName)
 			
 			thinPoolLines := strings.Split(strings.TrimSpace(string(thinPoolOutput)), "\n")
 			for _, line := range thinPoolLines {
@@ -1053,7 +1085,10 @@ func (dc *DiskChecker) CheckIOWait(ctx context.Context) *v1alpha1.CheckResult {
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "iostat -x 1 3")
+	command := "iostat -x 1 3"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "iostat", "-x", "1", "3")
 		output, err = cmd.Output()
@@ -1066,8 +1101,10 @@ func (dc *DiskChecker) CheckIOWait(ctx context.Context) *v1alpha1.CheckResult {
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	iostatOutput := strings.TrimSpace(string(output))
@@ -1150,7 +1187,10 @@ func (dc *DiskChecker) CheckQueueDepth(ctx context.Context) *v1alpha1.CheckResul
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "iostat -x 1 3")
+	command := "iostat -x 1 3"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "iostat", "-x", "1", "3")
 		output, err = cmd.Output()
@@ -1161,6 +1201,7 @@ func (dc *DiskChecker) CheckQueueDepth(ctx context.Context) *v1alpha1.CheckResul
 			return result
 		}
 	}
+	result.Command = command
 
 	iostatOutput := strings.TrimSpace(string(output))
 	lines := strings.Split(iostatOutput, "\n")
@@ -1231,17 +1272,23 @@ func (dc *DiskChecker) CheckFilesystemErrors(ctx context.Context) *v1alpha1.Chec
 	}
 
 	// Check dmesg for filesystem errors
-	output, err := runHostCommand(ctx, "dmesg | grep -i 'filesystem error\\|ext4.*error\\|xfs.*error\\|ext3.*error' | tail -50")
+	command := "dmesg | grep -i 'filesystem error\\|ext4.*error\\|xfs.*error\\|ext3.*error' | tail -50"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "sh", "-c", "dmesg | grep -i 'filesystem error\\|ext4.*error\\|xfs.*error\\|ext3.*error' | tail -50")
 		output, err = cmd.Output()
 		if err != nil {
 			details["check_source"] = "container"
+			result.Command = command
 		} else {
 			details["check_source"] = "host"
+			result.Command = command
 		}
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	fsErrorOutput := strings.TrimSpace(string(output))
@@ -1336,10 +1383,13 @@ func (dc *DiskChecker) CheckInodeUsage(ctx context.Context) *v1alpha1.CheckResul
 	importantSet := make(map[string]bool)
 	for _, path := range importantPaths {
 		cmd := fmt.Sprintf("df -i %s 2>/dev/null", path)
+		result.Command = cmd
 		output, err := runHostCommand(ctx, cmd)
 		if err != nil || len(output) == 0 {
 			continue
 		}
+
+		result.Command = cmd
 
 		outputStr := strings.TrimSpace(string(output))
 		lines := strings.Split(outputStr, "\n")
@@ -1365,7 +1415,10 @@ func (dc *DiskChecker) CheckInodeUsage(ctx context.Context) *v1alpha1.CheckResul
 	}
 	details["important_paths_checked"] = checkedImportant
 
-	output, err := runHostCommand(ctx, "df -iPT")
+	command := "df -iPT"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "df", "-iPT")
 		output, err = cmd.Output()
@@ -1376,8 +1429,10 @@ func (dc *DiskChecker) CheckInodeUsage(ctx context.Context) *v1alpha1.CheckResul
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	dfOutput := strings.TrimSpace(string(output))
@@ -1434,7 +1489,9 @@ func (dc *DiskChecker) CheckMountPoints(ctx context.Context) *v1alpha1.CheckResu
 	}
 
 	// Check dmesg for filesystem remount errors
-	remountOutput, err := runHostCommand(ctx, "dmesg | grep -i 'remount'")
+	remountCmd := "dmesg | grep -i 'remount'"
+	remountSource := "host (dmesg)"
+	remountOutput, err := runHostCommand(ctx, remountCmd)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "sh", "-c", "dmesg | grep -i 'remount'")
 		remountOutput, err = cmd.Output()
@@ -1444,18 +1501,24 @@ func (dc *DiskChecker) CheckMountPoints(ctx context.Context) *v1alpha1.CheckResu
 			remountOutput, err = cmd.Output()
 			if err != nil {
 				details["check_source"] = "container (dmesg/journalctl not accessible)"
+				remountSource = "container (unavailable)"
 			} else {
 				details["check_source"] = "container (journalctl)"
+				remountSource = "container (journalctl)"
 			}
 		} else {
 			details["check_source"] = "host (dmesg)"
+			remountSource = "container (dmesg via sh)"
 		}
 	} else {
 		details["check_source"] = "host (dmesg)"
+		remountSource = "host (dmesg)"
 	}
 
 	// Check dmesg for read-only filesystem errors
-	readonlyOutput, err := runHostCommand(ctx, "dmesg | grep -i 'readonly'")
+	readonlyCmd := "dmesg | grep -i 'readonly'"
+	readonlySource := "host (dmesg)"
+	readonlyOutput, err := runHostCommand(ctx, readonlyCmd)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "sh", "-c", "dmesg | grep -i 'readonly'")
 		readonlyOutput, err = cmd.Output()
@@ -1463,7 +1526,16 @@ func (dc *DiskChecker) CheckMountPoints(ctx context.Context) *v1alpha1.CheckResu
 			// If dmesg is not accessible, try journalctl
 			cmd = exec.CommandContext(ctx, "sh", "-c", "journalctl -k --no-pager | grep -i 'readonly'")
 			readonlyOutput, err = cmd.Output()
+			if err == nil {
+				readonlySource = "container (journalctl)"
+			} else {
+				readonlySource = "container (unavailable)"
+			}
+		} else {
+			readonlySource = "container (dmesg via sh)"
 		}
+	} else {
+		readonlySource = "host (dmesg)"
 	}
 
 	remountErrors := []string{}
@@ -1506,7 +1578,8 @@ func (dc *DiskChecker) CheckMountPoints(ctx context.Context) *v1alpha1.CheckResu
 	}
 
 	// Also get mount points for informational purposes
-	mountOutput, err := runHostCommand(ctx, "mount")
+	mountCmd := "mount"
+	mountOutput, err := runHostCommand(ctx, mountCmd)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "sh", "-c", "mount")
 		mountOutput, err = cmd.Output()
@@ -1543,6 +1616,7 @@ func (dc *DiskChecker) CheckMountPoints(ctx context.Context) *v1alpha1.CheckResu
 		result.Message = fmt.Sprintf("No filesystem errors detected (%d mount points)", len(mountPoints))
 	}
 
+	result.Command = fmt.Sprintf("%s [%s]; %s [%s]", remountCmd, remountSource, readonlyCmd, readonlySource)
 	result.Details = mapToRawExtension(details)
 	return result
 }

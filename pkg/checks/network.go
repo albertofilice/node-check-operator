@@ -31,7 +31,10 @@ func (nc *NetworkChecker) CheckInterfaces(ctx context.Context) *v1alpha1.CheckRe
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "ip a")
+	command := "ip a"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "ip", "a")
 		output, err = cmd.Output()
@@ -42,8 +45,10 @@ func (nc *NetworkChecker) CheckInterfaces(ctx context.Context) *v1alpha1.CheckRe
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	ipOutput := strings.TrimSpace(string(output))
@@ -188,7 +193,10 @@ func (nc *NetworkChecker) CheckRouting(ctx context.Context) *v1alpha1.CheckResul
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "ip route")
+	command := "ip route"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "ip", "route")
 		output, err = cmd.Output()
@@ -199,8 +207,10 @@ func (nc *NetworkChecker) CheckRouting(ctx context.Context) *v1alpha1.CheckResul
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	routeOutput := strings.TrimSpace(string(output))
@@ -265,6 +275,8 @@ func (nc *NetworkChecker) CheckConnectivity(ctx context.Context) *v1alpha1.Check
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
 	}
+
+	result.Command = "ping -c 1 -W 5 <target>; curl -s -L -o /dev/null --head --max-time 10 --connect-timeout 5 <target>"
 
 	// Test connectivity to common targets
 	targets := []string{
@@ -359,7 +371,10 @@ func (nc *NetworkChecker) CheckStatistics(ctx context.Context) *v1alpha1.CheckRe
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "ss -s")
+	command := "ss -s"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "ss", "-s")
 		output, err = cmd.Output()
@@ -371,8 +386,10 @@ func (nc *NetworkChecker) CheckStatistics(ctx context.Context) *v1alpha1.CheckRe
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	ssOutput := strings.TrimSpace(string(output))
@@ -467,7 +484,10 @@ func (nc *NetworkChecker) CheckErrors(ctx context.Context) *v1alpha1.CheckResult
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "ip -s link show")
+	command := "ip -s link show"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "sh", "-c", "ip -s link show")
 		output, err = cmd.Output()
@@ -478,8 +498,10 @@ func (nc *NetworkChecker) CheckErrors(ctx context.Context) *v1alpha1.CheckResult
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	ipOutput := strings.TrimSpace(string(output))
@@ -570,6 +592,8 @@ func (nc *NetworkChecker) CheckLatency(ctx context.Context) *v1alpha1.CheckResul
 		Status:    "Unknown",
 	}
 
+	result.Command = "ip route | grep default; ping -c 3 -W 1 <gateway>; ping -c 3 -W 1 <dns>"
+
 	// Get default gateway
 	gatewayOutput, gatewayErr := runHostCommand(ctx, "ip route | grep default | head -1 | awk '{print $3}'")
 	gateway := ""
@@ -640,6 +664,8 @@ func (nc *NetworkChecker) CheckDNSResolution(ctx context.Context) *v1alpha1.Chec
 		Status:    "Unknown",
 	}
 
+	result.Command = "getent hosts <domain> || nslookup <domain>"
+
 	// Test DNS resolution
 	// Note: kubernetes.default.svc.cluster.local is only resolvable from pod network, not host network
 	// So we only test external DNS resolution from host
@@ -688,7 +714,10 @@ func (nc *NetworkChecker) CheckBondingStatus(ctx context.Context) *v1alpha1.Chec
 	}
 
 	// Check for bonding interfaces
-	output, err := runHostCommand(ctx, "ls /sys/class/net/ | grep bond")
+	command := "ls /sys/class/net/ | grep bond"
+	result.Command = command
+
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		result.Status = "Healthy"
 		result.Message = "No bonding interfaces found"
@@ -732,6 +761,8 @@ func (nc *NetworkChecker) CheckFirewallRules(ctx context.Context) *v1alpha1.Chec
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
 	}
+
+	result.Command = "iptables -L -n; iptables rule count via wc -l"
 
 	// Check iptables rules count
 	iptablesOutput, iptablesErr := runHostCommand(ctx, "iptables -L -n 2>/dev/null | wc -l")

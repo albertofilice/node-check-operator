@@ -47,6 +47,14 @@ func (kc *KubernetesChecker) isOpenShiftCluster(ctx context.Context) bool {
 	return isOpenShift
 }
 
+// getKubectlCommand returns the appropriate command prefix (oc or kubectl) based on cluster type
+func (kc *KubernetesChecker) getKubectlCommand(ctx context.Context) string {
+	if kc.isOpenShiftCluster(ctx) {
+		return "oc"
+	}
+	return "kubectl"
+}
+
 // NewKubernetesChecker creates a new Kubernetes checker
 func NewKubernetesChecker(nodeName string) (*KubernetesChecker, error) {
 	// Try to get in-cluster config first
@@ -91,6 +99,7 @@ func (kc *KubernetesChecker) CheckNodeStatus(ctx context.Context) *v1alpha1.Chec
 	}
 
 	// Get node information
+	result.Command = fmt.Sprintf("%s get node %s", kc.getKubectlCommand(ctx), kc.nodeName)
 	node, err := kc.client.CoreV1().Nodes().Get(ctx, kc.nodeName, metav1.GetOptions{})
 	if err != nil {
 		result.Status = "Critical"
@@ -184,6 +193,8 @@ func (kc *KubernetesChecker) CheckPods(ctx context.Context) *v1alpha1.CheckResul
 		Status:    "Unknown",
 	}
 
+	result.Command = fmt.Sprintf("%s get pods -A --field-selector spec.nodeName=%s", kc.getKubectlCommand(ctx), kc.nodeName)
+
 	// Get all pods on the node
 	pods, err := kc.client.CoreV1().Pods("").List(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("spec.nodeName=%s", kc.nodeName),
@@ -268,6 +279,8 @@ func (kc *KubernetesChecker) CheckServices(ctx context.Context) *v1alpha1.CheckR
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
 	}
+
+	result.Command = fmt.Sprintf("%s get services --all-namespaces", kc.getKubectlCommand(ctx))
 
 	// Get all services
 	services, err := kc.client.CoreV1().Services("").List(ctx, metav1.ListOptions{})
@@ -438,6 +451,8 @@ func (kc *KubernetesChecker) CheckClusterOperators(ctx context.Context) *v1alpha
 		Status:    "Unknown",
 	}
 
+	result.Command = "oc get clusteroperators"
+
 	// ClusterOperator is an OpenShift-specific resource
 	// Use dynamic client to access config.openshift.io/v1/ClusterOperator
 	gvr := schema.GroupVersionResource{
@@ -538,6 +553,8 @@ func (kc *KubernetesChecker) CheckNodeResources(ctx context.Context) *v1alpha1.C
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
 	}
+
+	result.Command = fmt.Sprintf("%s describe node %s", kc.getKubectlCommand(ctx), kc.nodeName)
 
 	// Get node information
 	node, err := kc.client.CoreV1().Nodes().Get(ctx, kc.nodeName, metav1.GetOptions{})
@@ -698,6 +715,12 @@ func (kc *KubernetesChecker) CheckNodeResourceUsage(ctx context.Context) *v1alph
 	isOpenShift := kc.isOpenShiftCluster(ctx)
 	details["is_openshift"] = isOpenShift
 	
+	if isOpenShift {
+		result.Command = fmt.Sprintf("oc adm top node %s", kc.nodeName)
+	} else {
+		result.Command = fmt.Sprintf("kubectl get nodemetrics %s", kc.nodeName)
+	}
+	
 	metricsObj, err := kc.metricsClient.MetricsV1beta1().NodeMetricses().Get(ctx, kc.nodeName, metav1.GetOptions{})
 	if err != nil {
 		// Metrics API not available
@@ -807,6 +830,8 @@ func (kc *KubernetesChecker) CheckContainerRuntime(ctx context.Context) *v1alpha
 		Status:    "Unknown",
 	}
 
+	result.Command = "test -S /var/run/containerd/containerd.sock || test -S /var/run/crio/crio.sock || test -S /var/run/docker.sock"
+
 	// Check containerd socket
 	containerdSocket := "/run/containerd/containerd.sock"
 	output, err := runHostCommand(ctx, fmt.Sprintf("test -S %s && echo exists || echo not_found", containerdSocket))
@@ -858,6 +883,8 @@ func (kc *KubernetesChecker) CheckKubeletHealth(ctx context.Context) *v1alpha1.C
 		Status:    "Unknown",
 	}
 
+	result.Command = "curl -k https://localhost:10248/healthz || curl http://localhost:10248/healthz"
+
 	// Check kubelet health endpoint (usually on port 10248)
 	output, err := runHostCommand(ctx, "curl -s -k https://localhost:10248/healthz 2>&1 || curl -s http://localhost:10248/healthz 2>&1")
 	if err == nil {
@@ -888,6 +915,8 @@ func (kc *KubernetesChecker) CheckCNIPlugin(ctx context.Context) *v1alpha1.Check
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
 	}
+
+	result.Command = "ls /etc/cni/net.d && ls /opt/cni/bin"
 
 	// Check CNI config directory
 	cniConfigDir := "/etc/cni/net.d"
@@ -925,6 +954,8 @@ func (kc *KubernetesChecker) CheckNodeConditions(ctx context.Context) *v1alpha1.
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
 	}
+
+	result.Command = fmt.Sprintf("%s get node %s -o json", kc.getKubectlCommand(ctx), kc.nodeName)
 
 	node, err := kc.client.CoreV1().Nodes().Get(ctx, kc.nodeName, metav1.GetOptions{})
 	if err != nil {

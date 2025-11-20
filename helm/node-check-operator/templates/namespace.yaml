@@ -4,6 +4,7 @@ kind: Namespace
 metadata:
   name: {{ .Values.namespace.name }}
   labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
     control-plane: controller-manager
     openshift.io/cluster-monitoring: "true"
     security.openshift.io/scc.podSecurityLabelSync: "true"
@@ -12,6 +13,8 @@ metadata:
     pod-security.kubernetes.io/warn-version: latest
     pod-security.kubernetes.io/audit-version: latest
   annotations:
+    meta.helm.sh/release-name: {{ .Release.Name | quote }}
+    meta.helm.sh/release-namespace: {{ .Release.Namespace | quote }}
     security.openshift.io/MinimallySufficientPodSecurityStandard: privileged
 {{- end }}
 

@@ -43,6 +43,7 @@ interface CheckResult {
   status?: 'Healthy' | 'Warning' | 'Critical' | 'Unknown';
   message?: string;
   timestamp?: string;
+  command?: string;
   details?: Record<string, any>;
 }
 
@@ -488,9 +489,23 @@ const NodeCheckOverview: React.FC = () => {
               <p>
                 <strong>Message:</strong> {message}
               </p>
+              {displayResult.command && (
+                <p>
+                  <strong>Command:</strong>{' '}
+                  <code style={{ 
+                    backgroundColor: '#f5f5f5', 
+                    padding: '0.25rem 0.5rem', 
+                    borderRadius: '3px',
+                    fontFamily: 'monospace',
+                    fontSize: '0.9em'
+                  }}>
+                    {displayResult.command}
+                  </code>
+                </p>
+              )}
               {detailKeys.length > 0 && (
                 <>
-                  <h4>Details:</h4>
+                  <h4 style={{ fontWeight: 'bold' }}>Details:</h4>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <tbody>
                       {detailKeys.map((key) => (

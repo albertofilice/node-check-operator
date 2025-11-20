@@ -17,6 +17,9 @@ type CheckResult struct {
 	// Timestamp when the check was performed
 	Timestamp metav1.Time `json:"timestamp"`
 
+	// Command is the command used to perform this check (useful for debugging)
+	Command string `json:"command,omitempty"`
+
 	// Details provides additional information about the check
 	Details runtime.RawExtension `json:"details,omitempty"`
 }

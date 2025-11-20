@@ -33,10 +33,12 @@ func (sc *SystemChecker) CheckUptime(ctx context.Context) *v1alpha1.CheckResult 
 	}
 
 	// Execute uptime command directly on the host
-	output, err := runHostCommand(ctx, "uptime")
+	command := "uptime"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		// Fallback to container uptime if host access is unavailable
-		cmd := exec.CommandContext(ctx, "uptime")
+		cmd := exec.CommandContext(ctx, command)
 		output, err = cmd.Output()
 		if err != nil {
 			result.Status = "Critical"
@@ -45,8 +47,10 @@ func (sc *SystemChecker) CheckUptime(ctx context.Context) *v1alpha1.CheckResult 
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	uptimeStr := strings.TrimSpace(string(output))
@@ -130,14 +134,17 @@ func (sc *SystemChecker) CheckProcesses(ctx context.Context) *v1alpha1.CheckResu
 		
 	}
 
+	command := "top -bn1 | head -20"
+	result.Command = command
 	topOutput := ""
-	if output, err := runHostCommand(ctx, "top -bn1 | head -20"); err == nil && len(output) > 0 {
+	if output, err := runHostCommand(ctx, command); err == nil && len(output) > 0 {
 		topOutput = strings.TrimSpace(string(output))
 		details["top_output"] = topOutput
 		details["check_source"] = "host"
+		result.Command = command
 	} else {
 		// Fallback to container processes if host access fails
-		cmd := exec.CommandContext(ctx, "sh", "-c", "top -bn1 | head -20")
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err := cmd.Output()
 		if err != nil {
 			result.Status = "Critical"
@@ -148,6 +155,7 @@ func (sc *SystemChecker) CheckProcesses(ctx context.Context) *v1alpha1.CheckResu
 		topOutput = strings.TrimSpace(string(output))
 		details["top_output"] = topOutput
 		details["check_source"] = "container"
+		result.Command = command
 		result.Message = "Warning: Showing container processes (host access unavailable)"
 	}
 
@@ -208,7 +216,9 @@ func (sc *SystemChecker) CheckResources(ctx context.Context) *v1alpha1.CheckResu
 		
 	}
 
-	output, err := runHostCommand(ctx, "vmstat 1 3")
+	command := "vmstat 1 3"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "vmstat", "1", "3")
 		output, err = cmd.Output()
@@ -219,8 +229,10 @@ func (sc *SystemChecker) CheckResources(ctx context.Context) *v1alpha1.CheckResu
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	vmstatOutput := strings.TrimSpace(string(output))
@@ -304,12 +316,16 @@ func (sc *SystemChecker) CheckServices(ctx context.Context) *v1alpha1.CheckResul
 	}
 
 	// Check for failed services directly on the host
-	output, err := runHostCommand(ctx, "systemctl --failed --no-pager")
+	command := "systemctl --failed --no-pager"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil || len(output) == 0 {
-		journalOutput, journalErr := runHostCommand(ctx, "journalctl --no-pager -u '*.service' --since '1 hour ago' --priority=err --no-hostname | head -50")
+		journalCommand := "journalctl --no-pager -u '*.service' --since '1 hour ago' --priority=err --no-hostname | head -50"
+		journalOutput, journalErr := runHostCommand(ctx, journalCommand)
 		if journalErr == nil && len(journalOutput) > 0 {
 			output = journalOutput
 			err = nil
+			result.Command = journalCommand
 			details["check_method"] = "journalctl"
 		}
 	}
@@ -317,7 +333,8 @@ func (sc *SystemChecker) CheckServices(ctx context.Context) *v1alpha1.CheckResul
 	// If still no output, check if systemd is available on the host
 	if err != nil || len(output) == 0 {
 		// Check if host uses systemd
-		systemdCheck, sysErr := runHostCommand(ctx, "test -d /run/systemd && echo systemd || echo no-systemd")
+		systemdCommand := "test -d /run/systemd && echo systemd || echo no-systemd"
+		systemdCheck, sysErr := runHostCommand(ctx, systemdCommand)
 		if sysErr == nil && strings.Contains(string(systemdCheck), "no-systemd") {
 			result.Status = "Warning"
 			result.Message = "Service check not available (host does not use systemd)"
@@ -385,7 +402,9 @@ func (sc *SystemChecker) CheckMemory(ctx context.Context) *v1alpha1.CheckResult 
 		
 	}
 
-	output, err := runHostCommand(ctx, "free -h")
+	command := "free -h"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "free", "-h")
 		output, err = cmd.Output()
@@ -396,8 +415,10 @@ func (sc *SystemChecker) CheckMemory(ctx context.Context) *v1alpha1.CheckResult 
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	freeOutput := strings.TrimSpace(string(output))
@@ -506,7 +527,9 @@ func (sc *SystemChecker) CheckUninterruptibleTasks(ctx context.Context) *v1alpha
 	}
 
 	// Read /proc/stat to get process statistics from the host
-	statOutput, err := runHostCommand(ctx, "cat /proc/stat")
+	command := "cat /proc/stat"
+	result.Command = command
+	statOutput, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "cat", "/proc/stat")
 		statOutput, err = cmd.Output()
@@ -516,6 +539,9 @@ func (sc *SystemChecker) CheckUninterruptibleTasks(ctx context.Context) *v1alpha
 			result.Details = mapToRawExtension(details)
 			return result
 		}
+		result.Command = command
+	} else {
+		result.Command = command
 	}
 
 	lines := strings.Split(string(statOutput), "\n")
@@ -550,7 +576,8 @@ func (sc *SystemChecker) CheckUninterruptibleTasks(ctx context.Context) *v1alpha
 	}
 
 	// Also read /proc/loadavg to show load averages for context
-	loadOutput, err := runHostCommand(ctx, "cat /proc/loadavg")
+	loadCommand := "cat /proc/loadavg"
+	loadOutput, err := runHostCommand(ctx, loadCommand)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "cat", "/proc/loadavg")
 		loadOutput, err = cmd.Output()
@@ -582,7 +609,9 @@ func (sc *SystemChecker) CheckSystemLogs(ctx context.Context) *v1alpha1.CheckRes
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "journalctl --no-pager -p err --since '1 hour ago' --no-hostname")
+	command := "journalctl --no-pager -p err --since '1 hour ago' --no-hostname"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil || len(output) == 0 {
 		systemdCheck, sysErr := runHostCommand(ctx, "test -d /run/systemd && echo systemd || echo no-systemd")
 		if sysErr == nil && strings.Contains(string(systemdCheck), "no-systemd") {
@@ -678,9 +707,11 @@ func (sc *SystemChecker) CheckFileDescriptors(ctx context.Context) *v1alpha1.Che
 	}
 
 	// Read /proc/sys/fs/file-nr for file descriptor stats
-	output, err := runHostCommand(ctx, "cat /proc/sys/fs/file-nr")
+	command := "cat /proc/sys/fs/file-nr"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sh", "-c", "cat /proc/sys/fs/file-nr")
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err = cmd.Output()
 		if err != nil {
 			result.Status = "Warning"
@@ -689,8 +720,10 @@ func (sc *SystemChecker) CheckFileDescriptors(ctx context.Context) *v1alpha1.Che
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	fields := strings.Fields(strings.TrimSpace(string(output)))
@@ -732,9 +765,11 @@ func (sc *SystemChecker) CheckZombieProcesses(ctx context.Context) *v1alpha1.Che
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "ps -eo stat | awk '/^Z/ {c++} END {print c+0}'")
+	command := "ps -eo stat | awk '/^Z/ {c++} END {print c+0}'"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sh", "-c", "ps -eo stat | awk '/^Z/ {c++} END {print c+0}'")
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err = cmd.Output()
 		if err != nil {
 			result.Status = "Warning"
@@ -743,8 +778,10 @@ func (sc *SystemChecker) CheckZombieProcesses(ctx context.Context) *v1alpha1.Che
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	outputStr := strings.TrimSpace(string(output))
@@ -789,10 +826,13 @@ func (sc *SystemChecker) CheckNTPSync(ctx context.Context) *v1alpha1.CheckResult
 	}
 
 	// Try chronyd first (common on RHEL/CentOS)
-	output, err := runHostCommand(ctx, "chronyc tracking 2>/dev/null")
+	command := "chronyc tracking 2>/dev/null"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err == nil && len(output) > 0 {
 		details["ntp_daemon"] = "chronyd"
 		details["chronyc_output"] = string(output)
+		result.Command = command
 		
 		// Check if synchronized
 		if strings.Contains(string(output), "Leap status") {
@@ -809,10 +849,13 @@ func (sc *SystemChecker) CheckNTPSync(ctx context.Context) *v1alpha1.CheckResult
 	}
 
 	// Try ntpd
-	output, err = runHostCommand(ctx, "ntpq -p 2>/dev/null")
+	ntpdCommand := "ntpq -p 2>/dev/null"
+	result.Command = ntpdCommand
+	output, err = runHostCommand(ctx, ntpdCommand)
 	if err == nil && len(output) > 0 {
 		details["ntp_daemon"] = "ntpd"
 		details["ntpq_output"] = string(output)
+		result.Command = ntpdCommand
 		
 		// Check for synchronized peers
 		if strings.Contains(string(output), "*") {
@@ -827,10 +870,13 @@ func (sc *SystemChecker) CheckNTPSync(ctx context.Context) *v1alpha1.CheckResult
 	}
 
 	// Try systemd-timesyncd
-	output, err = runHostCommand(ctx, "timedatectl status 2>/dev/null")
+	timesyncdCommand := "timedatectl status 2>/dev/null"
+	result.Command = timesyncdCommand
+	output, err = runHostCommand(ctx, timesyncdCommand)
 	if err == nil && len(output) > 0 {
 		details["ntp_daemon"] = "systemd-timesyncd"
 		details["timedatectl_output"] = string(output)
+		result.Command = timesyncdCommand
 		
 		if strings.Contains(string(output), "synchronized: yes") {
 			result.Status = "Healthy"
@@ -845,6 +891,7 @@ func (sc *SystemChecker) CheckNTPSync(ctx context.Context) *v1alpha1.CheckResult
 
 	result.Status = "Warning"
 	result.Message = "NTP daemon not found or not accessible"
+	result.Command = "chronyc tracking || ntpq -p || timedatectl status (none available)"
 	details["note"] = "No NTP daemon (chronyd, ntpd, or systemd-timesyncd) found or accessible"
 	result.Details = mapToRawExtension(details)
 	return result
@@ -859,24 +906,30 @@ func (sc *SystemChecker) CheckKernelPanics(ctx context.Context) *v1alpha1.CheckR
 	}
 
 	// Check dmesg for kernel panics
-	output, err := runHostCommand(ctx, "dmesg | grep -i 'kernel panic\\|Oops\\|BUG' | tail -20")
+	command := "dmesg | grep -i 'kernel panic\\|Oops\\|BUG' | tail -20"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sh", "-c", "dmesg | grep -i 'kernel panic\\|Oops\\|BUG' | tail -20")
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err = cmd.Output()
 		if err != nil {
 			details["check_source"] = "container"
+			result.Command = command
 		} else {
 			details["check_source"] = "host"
+			result.Command = command
 		}
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	panicOutput := strings.TrimSpace(string(output))
 	details["panic_output"] = panicOutput
 
 	// Also check journalctl if available
-	journalOutput, journalErr := runHostCommand(ctx, "journalctl --no-pager -k --since '30 days ago' | grep -i 'kernel panic\\|Oops\\|BUG' | tail -20")
+	journalCommand := "journalctl --no-pager -k --since '30 days ago' | grep -i 'kernel panic\\|Oops\\|BUG' | tail -20"
+	journalOutput, journalErr := runHostCommand(ctx, journalCommand)
 	if journalErr == nil && len(journalOutput) > 0 {
 		details["journal_panic_output"] = string(journalOutput)
 	}
@@ -910,31 +963,38 @@ func (sc *SystemChecker) CheckOOMKiller(ctx context.Context) *v1alpha1.CheckResu
 
 	// Check dmesg for OOM killer events (limit to last hour to avoid stale entries)
 	dmesgCmd := "dmesg --since=-1h | grep -i 'Out of memory\\|oom-killer\\|killed process' | tail -20"
+	result.Command = dmesgCmd
 	output, err := runHostCommand(ctx, dmesgCmd)
 	if err != nil || len(output) == 0 {
 		// Fallback: some distros may not support --since on dmesg
 		fallbackCmd := "dmesg --ctime | tail -200 | grep -i 'Out of memory\\|oom-killer\\|killed process'"
+		result.Command = fallbackCmd
 		output, err = runHostCommand(ctx, fallbackCmd)
 		if err != nil {
 			cmd := exec.CommandContext(ctx, "sh", "-c", fallbackCmd)
 			output, err = cmd.Output()
 			if err != nil {
 				details["check_source"] = "container"
+				result.Command = fallbackCmd
 			} else {
 				details["check_source"] = "host"
+				result.Command = fallbackCmd
 			}
 		} else {
 			details["check_source"] = "host"
+			result.Command = fallbackCmd
 		}
 	} else {
 		details["check_source"] = "host"
+		result.Command = dmesgCmd
 	}
 
 	oomOutput := strings.TrimSpace(string(output))
 	details["oom_output"] = oomOutput
 
 	// Also check journalctl if available - only check last hour to avoid false positives
-	journalOutput, journalErr := runHostCommand(ctx, "journalctl --no-pager --since '1 hour ago' | grep -i 'Out of memory\\|oom-killer\\|killed process' | tail -20")
+	journalCommand := "journalctl --no-pager --since '1 hour ago' | grep -i 'Out of memory\\|oom-killer\\|killed process' | tail -20"
+	journalOutput, journalErr := runHostCommand(ctx, journalCommand)
 	if journalErr == nil && len(journalOutput) > 0 {
 		journalStr := strings.TrimSpace(string(journalOutput))
 		details["journal_oom_output"] = journalStr
@@ -983,7 +1043,9 @@ func (sc *SystemChecker) CheckCPUFrequency(ctx context.Context) *v1alpha1.CheckR
 	}
 
 	// Check CPU frequency scaling governor
-	output, err := runHostCommand(ctx, "cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor 2>/dev/null | sort -u")
+	command := "cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor 2>/dev/null | sort -u"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		details["note"] = "CPU frequency scaling information not available"
 		result.Status = "Warning"
@@ -991,18 +1053,21 @@ func (sc *SystemChecker) CheckCPUFrequency(ctx context.Context) *v1alpha1.CheckR
 		result.Details = mapToRawExtension(details)
 		return result
 	}
+	result.Command = command
 
 	governors := strings.Split(strings.TrimSpace(string(output)), "\n")
 	details["governors"] = governors
 
 	// Check for throttling events
-	throttleOutput, throttleErr := runHostCommand(ctx, "cat /sys/devices/system/cpu/cpu*/thermal_throttle/* 2>/dev/null | head -20")
+	throttleCommand := "cat /sys/devices/system/cpu/cpu*/thermal_throttle/* 2>/dev/null | head -20"
+	throttleOutput, throttleErr := runHostCommand(ctx, throttleCommand)
 	if throttleErr == nil && len(throttleOutput) > 0 {
 		details["throttle_info"] = string(throttleOutput)
 	}
 
 	// Check current frequencies
-	freqOutput, freqErr := runHostCommand(ctx, "cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq 2>/dev/null | head -5")
+	freqCommand := "cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq 2>/dev/null | head -5"
+	freqOutput, freqErr := runHostCommand(ctx, freqCommand)
 	if freqErr == nil && len(freqOutput) > 0 {
 		details["current_frequencies_sample"] = string(freqOutput)
 	}
@@ -1021,9 +1086,11 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "cat /proc/interrupts | head -30")
+	command := "cat /proc/interrupts | head -30"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sh", "-c", "cat /proc/interrupts | head -30")
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err = cmd.Output()
 		if err != nil {
 			result.Status = "Warning"
@@ -1032,8 +1099,10 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	interruptsOutput := strings.TrimSpace(string(output))
@@ -1061,9 +1130,11 @@ func (sc *SystemChecker) CheckCPUStealTime(ctx context.Context) *v1alpha1.CheckR
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "top -bn1 | grep -i 'Cpu(s)'")
+	command := "top -bn1 | grep -i 'Cpu(s)'"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sh", "-c", "top -bn1 | grep -i 'Cpu(s)'")
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err = cmd.Output()
 		if err != nil {
 			result.Status = "Warning"
@@ -1072,8 +1143,10 @@ func (sc *SystemChecker) CheckCPUStealTime(ctx context.Context) *v1alpha1.CheckR
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	cpuLine := string(output)
@@ -1117,9 +1190,11 @@ func (sc *SystemChecker) CheckMemoryFragmentation(ctx context.Context) *v1alpha1
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "cat /proc/buddyinfo")
+	command := "cat /proc/buddyinfo"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sh", "-c", "cat /proc/buddyinfo")
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err = cmd.Output()
 		if err != nil {
 			result.Status = "Warning"
@@ -1128,8 +1203,10 @@ func (sc *SystemChecker) CheckMemoryFragmentation(ctx context.Context) *v1alpha1
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	buddyInfo := strings.TrimSpace(string(output))
@@ -1167,7 +1244,9 @@ func (sc *SystemChecker) CheckSwapActivity(ctx context.Context) *v1alpha1.CheckR
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "vmstat 1 3")
+	command := "vmstat 1 3"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "vmstat", "1", "3")
 		output, err = cmd.Output()
@@ -1178,8 +1257,10 @@ func (sc *SystemChecker) CheckSwapActivity(ctx context.Context) *v1alpha1.CheckR
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	vmstatOutput := strings.TrimSpace(string(output))
@@ -1233,7 +1314,9 @@ func (sc *SystemChecker) CheckContextSwitches(ctx context.Context) *v1alpha1.Che
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "vmstat 1 3")
+	command := "vmstat 1 3"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		cmd := exec.CommandContext(ctx, "vmstat", "1", "3")
 		output, err = cmd.Output()
@@ -1244,8 +1327,10 @@ func (sc *SystemChecker) CheckContextSwitches(ctx context.Context) *v1alpha1.Che
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	vmstatOutput := strings.TrimSpace(string(output))
@@ -1293,7 +1378,9 @@ func (sc *SystemChecker) CheckSELinuxStatus(ctx context.Context) *v1alpha1.Check
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "getenforce 2>/dev/null")
+	command := "getenforce 2>/dev/null"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		result.Status = "Warning"
 		result.Message = "SELinux status check not available (getenforce not found or not accessible)"
@@ -1301,12 +1388,14 @@ func (sc *SystemChecker) CheckSELinuxStatus(ctx context.Context) *v1alpha1.Check
 		result.Details = mapToRawExtension(details)
 		return result
 	}
+	result.Command = command
 
 	status := strings.TrimSpace(string(output))
 	details["status"] = status
 
 	// Get detailed status
-	configOutput, configErr := runHostCommand(ctx, "sestatus 2>/dev/null")
+	sestatusCommand := "sestatus 2>/dev/null"
+	configOutput, configErr := runHostCommand(ctx, sestatusCommand)
 	if configErr == nil && len(configOutput) > 0 {
 		details["sestatus_output"] = string(configOutput)
 	}
@@ -1338,24 +1427,31 @@ func (sc *SystemChecker) CheckSSHAccess(ctx context.Context) *v1alpha1.CheckResu
 	}
 
 	// Check if SSH is running
-	sshStatus, sshErr := runHostCommand(ctx, "systemctl is-active sshd 2>/dev/null || systemctl is-active ssh 2>/dev/null")
+	sshStatusCommand := "systemctl is-active sshd 2>/dev/null || systemctl is-active ssh 2>/dev/null"
+	sshStatus, sshErr := runHostCommand(ctx, sshStatusCommand)
 	if sshErr == nil {
 		details["ssh_service_status"] = strings.TrimSpace(string(sshStatus))
 	}
 
 	// Check recent SSH connections
-	output, err := runHostCommand(ctx, "last -n 20 2>/dev/null | head -20")
+	command := "last -n 20 2>/dev/null | head -20"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
 		// Try wtmp or utmp
-		output, err = runHostCommand(ctx, "who 2>/dev/null")
+		whoCommand := "who 2>/dev/null"
+		result.Command = whoCommand
+		output, err = runHostCommand(ctx, whoCommand)
 	}
 
 	if err == nil && len(output) > 0 {
 		details["recent_ssh_connections"] = string(output)
+		result.Command = result.Command
 	}
 
 	// Check SSH config file permissions (if accessible)
-	configPerms, configErr := runHostCommand(ctx, "ls -l /etc/ssh/sshd_config 2>/dev/null")
+	configPermsCommand := "ls -l /etc/ssh/sshd_config 2>/dev/null"
+	configPerms, configErr := runHostCommand(ctx, configPermsCommand)
 	if configErr == nil {
 		details["sshd_config_permissions"] = strings.TrimSpace(string(configPerms))
 	}
@@ -1374,9 +1470,11 @@ func (sc *SystemChecker) CheckKernelModules(ctx context.Context) *v1alpha1.Check
 		Status:    "Unknown",
 	}
 
-	output, err := runHostCommand(ctx, "lsmod | head -50")
+	command := "lsmod | head -50"
+	result.Command = command
+	output, err := runHostCommand(ctx, command)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sh", "-c", "lsmod | head -50")
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err = cmd.Output()
 		if err != nil {
 			result.Status = "Warning"
@@ -1385,8 +1483,10 @@ func (sc *SystemChecker) CheckKernelModules(ctx context.Context) *v1alpha1.Check
 			return result
 		}
 		details["check_source"] = "container"
+		result.Command = command
 	} else {
 		details["check_source"] = "host"
+		result.Command = command
 	}
 
 	modulesOutput := strings.TrimSpace(string(output))

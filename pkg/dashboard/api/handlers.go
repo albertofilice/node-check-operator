@@ -52,6 +52,7 @@ type CheckResultAPI struct {
 	Status    string                 `json:"status"`
 	Message   string                 `json:"message,omitempty"`
 	Timestamp string                 `json:"timestamp"`
+	Command   string                 `json:"command,omitempty"`
 	Details   map[string]interface{} `json:"details,omitempty"`
 }
 
@@ -1458,6 +1459,7 @@ func (api *DashboardAPI) GetNodeCheckDetail(c *gin.Context) {
 			Status:    cr.Status,
 			Message:   cr.Message,
 			Timestamp: cr.Timestamp.Format(time.RFC3339),
+			Command:   cr.Command,
 		}
 		
 		// Deserialize RawExtension details to map
