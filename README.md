@@ -19,6 +19,10 @@ Results are exposed through:
 
 The plugin integrates natively into the OpenShift console, allowing you to view node status directly from the standard interface. No additional configuration is required: once the operator is installed, the plugin is automatically available in the Monitoring section.
 
+![Overview Dashboard](docs/images/overview-dashboard.png)
+
+The Overview page provides a comprehensive view of all nodes, showing aggregate statistics, node status distribution, and key metrics like average temperature, CPU/RAM allocation and usage.
+
 ### Prometheus Metrics
 
 The operator exposes standard Prometheus metrics that are automatically collected by OpenShift Cluster Monitoring. Metrics include:
@@ -240,6 +244,14 @@ kubectl get nodecheck nodecheck-worker-1 -o yaml
 1. Open the OpenShift console
 2. Navigate to **Monitoring > Node Check**
 3. Or go directly to `/nodecheck` in the console
+
+![Checks Overview](docs/images/checks-overview.png)
+
+The Checks tab shows a summary of all available checks across all nodes, with status counts for each check type.
+
+![Node Details](docs/images/node-details.png)
+
+The Node Details tab provides in-depth information for each node, including individual check results, commands executed, and detailed metrics.
 
 ## Available Checks
 
