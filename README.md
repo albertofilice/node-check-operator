@@ -71,11 +71,12 @@ The scripts automatically handle:
 
 ### Install with Helm
 
-The repository ships with a ready-to-use Helm chart in `helm/node-check-operator`. This is the fastest way to deploy the operator on any Kubernetes/OpenShift cluster:
+The repository ships with a ready-to-use Helm chart in `helm/node-check-operator`. You **do not** need to clone the repo to use it: Helm can install directly from the packaged chart hosted on GitHub.
 
 ```bash
-# Add any required registries / secrets first, then install
-helm upgrade --install node-check-operator ./helm/node-check-operator \
+# Install directly from GitHub (no git clone required)
+helm upgrade --install node-check-operator \
+  https://raw.githubusercontent.com/albertofilice/node-check-operator/main/helm/node-check-operator-0.1.0.tgz \
   --namespace node-check-operator-system \
   --create-namespace
 ```
@@ -93,7 +94,8 @@ consolePluginImage:
 enableOpenShiftFeatures: true
 EOF
 
-helm upgrade --install node-check-operator ./helm/node-check-operator \
+helm upgrade --install node-check-operator \
+  https://raw.githubusercontent.com/albertofilice/node-check-operator/main/helm/node-check-operator-0.1.0.tgz \
   --namespace node-check-operator-system \
   --create-namespace \
   -f custom-values.yaml
