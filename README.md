@@ -11,7 +11,6 @@ The operator monitors cluster nodes by running a series of automatic checks that
 
 Results are exposed through:
 - **OpenShift Console Plugin**: integrated interface in the standard console
-- **Standalone web dashboard**: accessible via browser
 - **Prometheus metrics**: for integration with existing monitoring systems
 
 ## Main Features
@@ -19,10 +18,6 @@ Results are exposed through:
 ### OpenShift Console Integration
 
 The plugin integrates natively into the OpenShift console, allowing you to view node status directly from the standard interface. No additional configuration is required: once the operator is installed, the plugin is automatically available in the Monitoring section.
-
-### Web Dashboard
-
-A standalone web dashboard provides a detailed view of all monitored nodes, with real-time statistics, historical charts, and complete details of each check performed.
 
 ### Prometheus Metrics
 
@@ -38,7 +33,6 @@ The operator automatically creates and manages all necessary resources:
 - Deployment and Service for the console plugin
 - ServiceMonitor and PrometheusRule for monitoring
 - DaemonSet for executing checks on nodes
-- Route for dashboard access (optional)
 
 ## Installation
 
