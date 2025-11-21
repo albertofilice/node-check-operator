@@ -3,16 +3,16 @@ entries:
   node-check-operator:
   - apiVersion: v2
     appVersion: 1.0.7
-    created: "2025-11-21T09:47:08.229116+01:00"
+    created: "2025-11-21T13:31:16.131958+01:00"
     description: Helm chart to deploy the Node Check Operator and console plugin
-    digest: 25de47022c50d45d119cb5e0db4a0ee29492cf067d753271b9dc8fb367f902f1
+    digest: e406f2d9cf41326d6f4ee0525f5f1f1f2467ba8348821d5e745c41ed582f3881
     keywords:
     - node
     - observability
     - openshift
     - kubernetes
     maintainers:
-    - email: example@example.com
+    - email: albertofilice@gmail.com
       name: Node Check Operator
     name: node-check-operator
     sources:
@@ -21,4 +21,4 @@ entries:
     urls:
     - https://albertofilice.github.io/node-check-operator/charts/node-check-operator-1.0.7.tgz
     version: 1.0.7
-generated: "2025-11-21T09:47:08.22879+01:00"
+generated: "2025-11-21T13:31:16.13158+01:00"

@@ -135,7 +135,6 @@ EOF
 helm upgrade --install node-check-operator \
   https://github.com/albertofilice/node-check-operator/releases/download/v1.0.7/node-check-operator-1.0.7.tgz \
   --namespace node-check-operator-system \
-  --create-namespace \
   -f custom-values.yaml
 ```
 
