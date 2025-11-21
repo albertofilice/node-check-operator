@@ -77,7 +77,7 @@ Add the Helm repository and install:
 
 ```bash
 # Add the Helm repository
-helm repo add node-check-operator https://albertofilice.github.io/node-check-operator
+helm repo add node-check-operator https://albertofilice.github.io/node-check-operator/charts
 helm repo update
 
 # Install the operator

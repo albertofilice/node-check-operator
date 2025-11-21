@@ -3,9 +3,9 @@ entries:
   node-check-operator:
   - apiVersion: v2
     appVersion: 1.0.7
-    created: "2025-11-21T09:38:22.776833+01:00"
+    created: "2025-11-21T09:47:08.229116+01:00"
     description: Helm chart to deploy the Node Check Operator and console plugin
-    digest: c7c6c80c8d016308df38486152268df9d6e7a69dd4b68a2a5e3c2ee9bc30a21f
+    digest: 25de47022c50d45d119cb5e0db4a0ee29492cf067d753271b9dc8fb367f902f1
     keywords:
     - node
     - observability
@@ -19,6 +19,6 @@ entries:
     - https://github.com/albertofilice/node-check-operator
     type: application
     urls:
-    - https://albertofilice.github.io/node-check-operator/node-check-operator-0.1.0.tgz
-    version: 0.1.0
-generated: "2025-11-21T09:38:22.77646+01:00"
+    - https://albertofilice.github.io/node-check-operator/charts/node-check-operator-1.0.7.tgz
+    version: 1.0.7
+generated: "2025-11-21T09:47:08.22879+01:00"
