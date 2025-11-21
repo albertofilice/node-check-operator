@@ -1,0 +1,58 @@
+{{- /*
+Pre-install hook to create/update the namespace with required OpenShift labels and annotations.
+This runs BEFORE Helm installs resources, so it works even with --create-namespace.
+*/ -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-namespace-setup-{{ .Release.Revision }}
+  namespace: default
+  labels:
+    app.kubernetes.io/name: {{ include "node-check-operator.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: {{ .Release.Name }}-namespace-setup
+    spec:
+      serviceAccountName: {{ .Release.Name }}-namespace-setup
+      restartPolicy: Never
+      containers:
+      - name: kubectl
+        image: registry.redhat.io/openshift4/ose-cli:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          # Create or update namespace with required labels and annotations
+          cat <<EOF | oc apply -f -
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: {{ .Release.Namespace }}
+            labels:
+              name: {{ .Release.Namespace }}
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+              control-plane: controller-manager
+              openshift.io/cluster-monitoring: "true"
+              security.openshift.io/scc.podSecurityLabelSync: "true"
+              pod-security.kubernetes.io/enforce: privileged
+              pod-security.kubernetes.io/audit: privileged
+              pod-security.kubernetes.io/warn: privileged
+              pod-security.kubernetes.io/enforce-version: latest
+              pod-security.kubernetes.io/audit-version: latest
+              pod-security.kubernetes.io/warn-version: latest
+              app.kubernetes.io/managed-by: {{ .Release.Service }}
+            annotations:
+              meta.helm.sh/release-name: {{ .Release.Name }}
+              meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+              security.openshift.io/MinimallySufficientPodSecurityStandard: privileged
+          EOF
+        securityContext:
+          runAsUser: 0

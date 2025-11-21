@@ -86,6 +86,8 @@ helm upgrade --install node-check-operator node-check-operator/node-check-operat
   --create-namespace
 ```
 
+> **Note:** The chart uses a pre-install hook to create/update the namespace with the required OpenShift labels (including PodSecurity `privileged` mode). The hook runs before Helm installs resources, so it works even if you use `--create-namespace` or if the namespace already exists.
+
 Customise images, resources or namespace with a custom `values.yaml`:
 
 ```bash
@@ -101,42 +103,10 @@ EOF
 
 helm upgrade --install node-check-operator node-check-operator/node-check-operator \
   --namespace node-check-operator-system \
-  --create-namespace \
   -f custom-values.yaml
 ```
 
 > **Note:** Make sure GitHub Pages is enabled in your repository settings (Settings > Pages > Source: `/docs`).
-
-#### Install from GitHub Release
-
-Install directly from the latest release without cloning the repository:
-
-```bash
-# Install from latest release (v1.0.7)
-helm upgrade --install node-check-operator \
-  https://github.com/albertofilice/node-check-operator/releases/download/v1.0.7/node-check-operator-1.0.7.tgz \
-  --namespace node-check-operator-system \
-  --create-namespace
-```
-
-Customise images, resources or namespace with a custom `values.yaml`:
-
-```bash
-cat > custom-values.yaml <<'EOF'
-image:
-  repository: quay.io/rh_ee_afilice/node-check-operator
-  tag: v1.0.7
-consolePluginImage:
-  repository: quay.io/rh_ee_afilice/node-check-operator-console-plugin
-  tag: v1.0.7
-enableOpenShiftFeatures: true
-EOF
-
-helm upgrade --install node-check-operator \
-  https://github.com/albertofilice/node-check-operator/releases/download/v1.0.7/node-check-operator-1.0.7.tgz \
-  --namespace node-check-operator-system \
-  -f custom-values.yaml
-```
 
 #### Install from Local Repository
 
@@ -149,8 +119,7 @@ cd node-check-operator
 
 # Install with default values
 helm upgrade --install node-check-operator ./helm/node-check-operator \
-  --namespace node-check-operator-system \
-  --create-namespace
+  --namespace node-check-operator-system
 ```
 
 > The Helm chart also installs the CRD (placed under `helm/node-check-operator/crds`). Upgrades follow the usual Helm workflow. Check [GitHub Releases](https://github.com/albertofilice/node-check-operator/releases) for available versions.
