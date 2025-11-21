@@ -69,12 +69,52 @@ The scripts automatically handle:
 
 ### Install with Helm
 
-The repository ships with a ready-to-use Helm chart in `helm/node-check-operator`. You **do not** need to clone the repo to use it: Helm can install directly from the packaged chart hosted on GitHub.
+The repository ships with a ready-to-use Helm chart. You can install it using GitHub Pages as a Helm repository (recommended), directly from GitHub Releases, or by cloning the repository.
+
+#### Install from Helm Repository (Recommended)
+
+Add the Helm repository and install:
 
 ```bash
-# Install directly from GitHub (no git clone required)
+# Add the Helm repository
+helm repo add node-check-operator https://albertofilice.github.io/node-check-operator
+helm repo update
+
+# Install the operator
+helm upgrade --install node-check-operator node-check-operator/node-check-operator \
+  --namespace node-check-operator-system \
+  --create-namespace
+```
+
+Customise images, resources or namespace with a custom `values.yaml`:
+
+```bash
+cat > custom-values.yaml <<'EOF'
+image:
+  repository: quay.io/rh_ee_afilice/node-check-operator
+  tag: v1.0.7
+consolePluginImage:
+  repository: quay.io/rh_ee_afilice/node-check-operator-console-plugin
+  tag: v1.0.7
+enableOpenShiftFeatures: true
+EOF
+
+helm upgrade --install node-check-operator node-check-operator/node-check-operator \
+  --namespace node-check-operator-system \
+  --create-namespace \
+  -f custom-values.yaml
+```
+
+> **Note:** Make sure GitHub Pages is enabled in your repository settings (Settings > Pages > Source: `/docs`).
+
+#### Install from GitHub Release
+
+Install directly from the latest release without cloning the repository:
+
+```bash
+# Install from latest release (v1.0.7)
 helm upgrade --install node-check-operator \
-  https://raw.githubusercontent.com/albertofilice/node-check-operator/main/helm/node-check-operator-0.1.0.tgz \
+  https://github.com/albertofilice/node-check-operator/releases/download/v1.0.7/node-check-operator-1.0.7.tgz \
   --namespace node-check-operator-system \
   --create-namespace
 ```
@@ -93,13 +133,28 @@ enableOpenShiftFeatures: true
 EOF
 
 helm upgrade --install node-check-operator \
-  https://raw.githubusercontent.com/albertofilice/node-check-operator/main/helm/node-check-operator-0.1.0.tgz \
+  https://github.com/albertofilice/node-check-operator/releases/download/v1.0.7/node-check-operator-1.0.7.tgz \
   --namespace node-check-operator-system \
   --create-namespace \
   -f custom-values.yaml
 ```
 
-> The Helm chart also installs the CRD (placed under `helm/node-check-operator/crds`). Upgrades follow the usual Helm workflow.
+#### Install from Local Repository
+
+Alternatively, clone the repository and install from the local chart:
+
+```bash
+# Clone the repository
+git clone https://github.com/albertofilice/node-check-operator.git
+cd node-check-operator
+
+# Install with default values
+helm upgrade --install node-check-operator ./helm/node-check-operator \
+  --namespace node-check-operator-system \
+  --create-namespace
+```
+
+> The Helm chart also installs the CRD (placed under `helm/node-check-operator/crds`). Upgrades follow the usual Helm workflow. Check [GitHub Releases](https://github.com/albertofilice/node-check-operator/releases) for available versions.
 
 ### Build with Custom Registry
 
@@ -124,6 +179,29 @@ For production, it is recommended to use a container registry:
   --registry quay.io \
   --image-name my-org/node-check-operator \
   --version v1.0.0
+```
+
+### Uninstall
+
+To completely remove the operator and all its resources:
+
+**Using the install script:**
+```bash
+# Uninstall everything (CRD, RBAC, namespace, workloads)
+./scripts/install.sh --only-remove
+
+# If installed with Helm, specify the Helm flag
+./scripts/install.sh --only-remove --helm
+```
+
+**Using Helm directly:**
+```bash
+# Uninstall Helm release
+helm uninstall node-check-operator -n node-check-operator-system
+
+# Manually delete remaining resources if needed
+kubectl delete namespace node-check-operator-system
+kubectl delete crd nodechecks.nodecheck.openshift.io
 ```
 
 ### Verify Installation

@@ -51,3 +51,7 @@ console-plugin/package-lock.json
 *.swp
 *.swo
 *~
+
+# Ignore Scripts
+scripts/create-release.sh
+scripts/setup-helm-repo.sh

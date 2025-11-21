@@ -76,6 +76,7 @@ FORCE_REINSTALL=${FORCE_REINSTALL:-"false"}
 ENABLE_OPENSHIFT_FEATURES=${ENABLE_OPENSHIFT_FEATURES:-"true"}
 USE_HELM=${USE_HELM:-"false"}
 HELM_RELEASE_NAME=${HELM_RELEASE_NAME:-"node-check-operator"}
+ONLY_REMOVE=${ONLY_REMOVE:-"false"}
 
 # Show help
 show_help() {
@@ -89,6 +90,7 @@ show_help() {
     echo "  --version VERSION      Image version (default: latest)"
     echo "  --namespace NAMESPACE  Namespace for operator (default: node-check-operator-system)"
     echo "  --force                Force reinstallation by removing existing resources"
+    echo "  --only-remove          Uninstall the operator without reinstalling"
     echo "  --openshift [true|false] Enable OpenShift-specific features (console plugin, dashboard). Default: true"
     echo "  --helm                 Install using Helm chart instead of raw manifests"
     echo "  --help                 Show this help"
@@ -99,6 +101,7 @@ show_help() {
     echo "  $0 --openshift false   # Disable OpenShift-specific features"
     echo "  $0 --helm              # Install using Helm chart"
     echo "  $0 --helm --force      # Clean and reinstall using Helm"
+    echo "  $0 --only-remove       # Uninstall the operator"
     echo
 }
 
@@ -124,6 +127,10 @@ parse_args() {
                 ;;
             --force)
                 FORCE_REINSTALL="true"
+                shift
+                ;;
+            --only-remove|--uninstall)
+                ONLY_REMOVE="true"
                 shift
                 ;;
             --openshift)
@@ -698,11 +705,11 @@ show_info() {
     if [ "${USE_HELM}" = "true" ]; then
         echo "  helm uninstall ${HELM_RELEASE_NAME} -n ${NAMESPACE}"
     else
-        echo "  $KUBECTL_CMD delete -f $TEMP_DIR/manager/manager.yaml"
-        echo "  $KUBECTL_CMD delete daemonset node-check-executor -n ${NAMESPACE} --ignore-not-found=true"
-        echo "  $KUBECTL_CMD delete -f config/rbac/role_binding.yaml"
-        echo "  $KUBECTL_CMD delete -f config/rbac/role.yaml"
-        echo "  $KUBECTL_CMD delete -f config/crd/bases/nodecheck.openshift.io_nodechecks.yaml"
+    echo "  $KUBECTL_CMD delete -f $TEMP_DIR/manager/manager.yaml"
+    echo "  $KUBECTL_CMD delete daemonset node-check-executor -n ${NAMESPACE} --ignore-not-found=true"
+    echo "  $KUBECTL_CMD delete -f config/rbac/role_binding.yaml"
+    echo "  $KUBECTL_CMD delete -f config/rbac/role.yaml"
+    echo "  $KUBECTL_CMD delete -f config/crd/bases/nodecheck.openshift.io_nodechecks.yaml"
     fi
     echo
     echo "Configuration used:"
@@ -734,6 +741,14 @@ main() {
     fi
     
     check_prerequisites
+    
+    # If only-remove flag is set, just cleanup and exit
+    if [ "${ONLY_REMOVE}" = "true" ]; then
+        force_cleanup
+        log_info "Uninstallation completed successfully!"
+        exit 0
+    fi
+    
     if [ "${FORCE_REINSTALL}" = "true" ]; then
         force_cleanup
     fi
@@ -743,11 +758,11 @@ main() {
         install_with_helm
     else
         # Install using traditional manifests
-        install_crd
-        install_rbac
-        update_manifests
-        install_operator
-        configure_scc
+    install_crd
+    install_rbac
+    update_manifests
+    install_operator
+    configure_scc
     fi
     
     # Console plugin, dashboard service and route are automatically managed by operator
