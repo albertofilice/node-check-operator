@@ -6,12 +6,16 @@ A Kubernetes/OpenShift operator for comprehensive bare metal node monitoring. It
 
 The operator monitors cluster nodes by running a series of automatic checks that verify:
 
-- **Operating system status**: uptime, processes, memory, CPU, disks, network, hardware
-- **Kubernetes/OpenShift status**: node conditions, pods, services, resource quotas, cluster operators
+- **Operating system status**: uptime, processes, memory, CPU, disks, network, hardware, system logs, file descriptors, zombie processes, NTP sync, kernel panics, OOM killer, CPU frequency, interrupts balance, CPU steal time, memory fragmentation, swap activity, context switches, SELinux status, SSH access, kernel modules
+- **Hardware monitoring**: temperature sensors, IPMI, BMC, fan status, power supply, memory errors (ECC/MCE), PCIe errors, CPU microcode
+- **Disk monitoring**: space usage, SMART health, I/O performance, RAID arrays, LVM (PVs, VGs, LVs), I/O wait, queue depth, filesystem errors, inode usage, mount points
+- **Network monitoring**: interface status, routing tables, connectivity tests, network statistics, interface errors, latency, DNS resolution, bonding status, firewall rules
+- **Kubernetes/OpenShift status**: node status and conditions, pods, cluster operators, node resources (allocations and real-time usage), container runtime, kubelet health, CNI plugin
 
 Results are exposed through:
 - **OpenShift Console Plugin**: integrated interface in the standard console
 - **Prometheus metrics**: for integration with existing monitoring systems
+- **Custom Resource status**: detailed check results stored in the NodeCheck resource status (accessible via `kubectl get nodecheck -o yaml | oc get nodecheck -o yaml`)
 
 ## Main Features
 
@@ -31,21 +35,14 @@ The operator exposes standard Prometheus metrics that are automatically collecte
 - **Per-node metrics**: temperature, CPU/RAM usage, load averages, uptime
 - **Predefined alerts**: automatic notifications for critical nodes or failed checks
 
-### Automatic Resource Management
-
-The operator automatically creates and manages all necessary resources:
-- Deployment and Service for the console plugin
-- ServiceMonitor and PrometheusRule for monitoring
-- DaemonSet for executing checks on nodes
-
 ## Installation
 
 ### Prerequisites
 
 - OpenShift/Kubernetes cluster
 - Cluster access with permissions to create CRD, ClusterRole, Deployment
-- Docker or Podman for building images
-- `kubectl` or `oc` for installation
+- Docker or Podman for building images (optional)
+- `kubectl` or `oc` or `helm` for installation
 
 ### Quick Build and Installation
 
@@ -85,8 +82,6 @@ helm upgrade --install node-check-operator node-check-operator/node-check-operat
   --namespace node-check-operator-system \
   --create-namespace
 ```
-
-> **Note:** The chart uses a pre-install hook to create/update the namespace with the required OpenShift labels (including PodSecurity `privileged` mode). The hook runs before Helm installs resources, so it works even if you use `--create-namespace` or if the namespace already exists.
 
 Customise images, resources or namespace with a custom `values.yaml`:
 
