@@ -242,6 +242,77 @@ func getProcsBlocked(ctx context.Context) (int, error) {
 	return 0, fmt.Errorf("procs_blocked not found in /proc/stat")
 }
 
+// CPUStats represents CPU statistics from /proc/stat
+type CPUStats struct {
+	User    int64
+	Nice    int64
+	System  int64
+	Idle    int64
+	IOWait  int64
+	IRQ     int64
+	SoftIRQ int64
+	Steal   int64
+}
+
+// readCPUStats reads CPU statistics from /proc/stat (aggregate line "cpu ")
+func readCPUStats(ctx context.Context) (*CPUStats, error) {
+	data, err := readProcFile(ctx, "/proc/stat")
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "cpu ") {
+			// This is the aggregate CPU line (not cpu0, cpu1, etc.)
+			fields := strings.Fields(line)
+			if len(fields) < 9 {
+				return nil, fmt.Errorf("invalid cpu line format")
+			}
+
+			stats := &CPUStats{}
+			// cpu line format: cpu user nice system idle iowait irq softirq steal guest guest_nice
+			// Index:           0   1    2    3      4     5       6   7        8     9      10
+			if val, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
+				stats.User = val
+			}
+			if val, err := strconv.ParseInt(fields[2], 10, 64); err == nil {
+				stats.Nice = val
+			}
+			if val, err := strconv.ParseInt(fields[3], 10, 64); err == nil {
+				stats.System = val
+			}
+			if val, err := strconv.ParseInt(fields[4], 10, 64); err == nil {
+				stats.Idle = val
+			}
+			if len(fields) > 5 {
+				if val, err := strconv.ParseInt(fields[5], 10, 64); err == nil {
+					stats.IOWait = val
+				}
+			}
+			if len(fields) > 6 {
+				if val, err := strconv.ParseInt(fields[6], 10, 64); err == nil {
+					stats.IRQ = val
+				}
+			}
+			if len(fields) > 7 {
+				if val, err := strconv.ParseInt(fields[7], 10, 64); err == nil {
+					stats.SoftIRQ = val
+				}
+			}
+			if len(fields) > 8 {
+				if val, err := strconv.ParseInt(fields[8], 10, 64); err == nil {
+					stats.Steal = val
+				}
+			}
+
+			return stats, nil
+		}
+	}
+
+	return nil, fmt.Errorf("cpu aggregate line not found in /proc/stat")
+}
+
 // EventWindow tracks events in a sliding time window for debouncing
 type EventWindow struct {
 	mu     sync.Mutex
@@ -304,5 +375,29 @@ func withTimeout(ctx context.Context, timeout time.Duration) (context.Context, c
 		return ctx, func() {}
 	}
 	return context.WithTimeout(ctx, timeout)
+}
+
+// checkSystemdAvailable checks if systemd is available and handles the case where it's not booted with systemd
+// Returns: (isAvailable, output, error)
+// If systemd is not available (not booted with systemd), returns (false, nil, nil) with OK status
+func checkSystemdAvailable(ctx context.Context, command string) (bool, []byte, error) {
+	output, err := runHostCommand(ctx, command)
+	if err != nil {
+		// Check if the error is because systemd is not available
+		outputStr := string(output)
+		if strings.Contains(outputStr, "System has not been booted with systemd") {
+			// systemd not available - this is OK, not an error
+			return false, nil, nil
+		}
+		// Other error
+		return false, output, err
+	}
+	// Check output for systemd not available message (even if no error)
+	outputStr := string(output)
+	if strings.Contains(outputStr, "System has not been booted with systemd") {
+		return false, nil, nil
+	}
+	// systemd is available
+	return true, output, nil
 }
 
