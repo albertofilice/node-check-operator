@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/albertofilice/node-check-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,8 +15,18 @@ import (
 
 // SystemChecker handles system-level checks
 type SystemChecker struct {
-	nodeName string
+	nodeName        string
+	oomWindow       *EventWindow
+	panicWindow     *EventWindow
+	blockedWindow   *EventWindow
 }
+
+// Global event windows for tracking events across checks
+var (
+	globalOOMWindow     = NewEventWindow(10 * time.Minute)
+	globalPanicWindow   = NewEventWindow(30 * time.Minute)
+	globalBlockedWindow = NewEventWindow(5 * time.Minute)
+)
 
 // NewSystemChecker creates a new system checker
 func NewSystemChecker(nodeName string) *SystemChecker {
@@ -24,101 +36,94 @@ func NewSystemChecker(nodeName string) *SystemChecker {
 }
 
 // CheckUptime performs uptime and load checks
+// Uses /proc/loadavg directly instead of parsing uptime output for better reliability
 func (sc *SystemChecker) CheckUptime(ctx context.Context) *v1alpha1.CheckResult {
 	details := make(map[string]interface{})
 	result := &v1alpha1.CheckResult{
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
-		
 	}
 
-	// Execute uptime command directly on the host
-	command := "uptime"
-	result.Command = command
-	output, err := runHostCommand(ctx, command)
+	// Add timeout to context
+	ctx, cancel := withTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// Read load averages directly from /proc/loadavg (locale-independent)
+	load1, load5, load15, err := readLoadAvg(ctx)
 	if err != nil {
-		// Fallback to container uptime if host access is unavailable
-		cmd := exec.CommandContext(ctx, command)
-		output, err = cmd.Output()
-		if err != nil {
-			result.Status = "Critical"
-			result.Message = fmt.Sprintf("Failed to execute uptime: %v", err)
+		// Fallback to uptime command if /proc/loadavg is not accessible
+		command := "uptime"
+		result.Command = command
+		output, cmdErr := runHostCommand(ctx, command)
+		if cmdErr != nil {
+			cmd := exec.CommandContext(ctx, command)
+			output, cmdErr = cmd.Output()
+			if cmdErr != nil {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Failed to read load averages: %v (fallback also failed: %v)", err, cmdErr)
+				details["check_source"] = "failed"
+				result.Details = mapToRawExtension(details)
+				return result
+			}
+			details["check_source"] = "container_fallback"
+		} else {
+			details["check_source"] = "host_fallback"
+		}
+
+		// Parse uptime output as fallback
+		uptimeStr := strings.TrimSpace(string(output))
+		details["uptime"] = uptimeStr
+		parts := strings.Fields(uptimeStr)
+		if len(parts) >= 10 {
+			load1Str := strings.TrimSuffix(parts[len(parts)-3], ",")
+			load5Str := strings.TrimSuffix(parts[len(parts)-2], ",")
+			load15Str := parts[len(parts)-1]
+			load1, _ = strconv.ParseFloat(load1Str, 64)
+			load5, _ = strconv.ParseFloat(load5Str, 64)
+			load15, _ = strconv.ParseFloat(load15Str, 64)
+		} else {
+			result.Status = "Warning"
+			result.Message = "Could not parse load averages from uptime output"
 			result.Details = mapToRawExtension(details)
 			return result
 		}
-		details["check_source"] = "container"
-		result.Command = command
 	} else {
-		details["check_source"] = "host"
-		result.Command = command
+		details["check_source"] = "proc_loadavg"
+		result.Command = "read /proc/loadavg"
 	}
 
-	uptimeStr := strings.TrimSpace(string(output))
-	details["uptime"] = uptimeStr
-
-	// Get number of CPU cores to calculate dynamic thresholds
-	// Load average should be compared to the number of cores
-	// Ideal load is <= number of cores
-	numCores := 1 // Default fallback
-	if nprocOutput, err := runHostCommand(ctx, "nproc"); err == nil {
-		if cores, err := strconv.Atoi(strings.TrimSpace(string(nprocOutput))); err == nil && cores > 0 {
-			numCores = cores
-		}
-	} else {
-		// Fallback: try to count from /proc/cpuinfo
-		if cpuinfoOutput, err := runHostCommand(ctx, "grep -c ^processor /proc/cpuinfo"); err == nil {
-			if cores, err := strconv.Atoi(strings.TrimSpace(string(cpuinfoOutput))); err == nil && cores > 0 {
-				numCores = cores
-			}
-		}
+	// Use runtime.NumCPU() instead of executing nproc
+	numCores := runtime.NumCPU()
+	if numCores == 0 {
+		numCores = 1 // Safety fallback
 	}
 	details["cpu_cores"] = numCores
 
-	// Parse load averages
-	parts := strings.Fields(uptimeStr)
-	if len(parts) >= 10 {
-		// Format: "up X days, HH:MM, load average: 0.00, 0.00, 0.00"
-		// Remove trailing commas from load average values
-		load1Str := strings.TrimSuffix(parts[len(parts)-3], ",")
-		load5Str := strings.TrimSuffix(parts[len(parts)-2], ",")
-		load15Str := parts[len(parts)-1]
-		
-		load1, _ := strconv.ParseFloat(load1Str, 64)
-		load5, _ := strconv.ParseFloat(load5Str, 64)
-		load15, _ := strconv.ParseFloat(load15Str, 64)
+	details["load_1min"] = load1
+	details["load_5min"] = load5
+	details["load_15min"] = load15
 
-		details["load_1min"] = load1
-		details["load_5min"] = load5
-		details["load_15min"] = load15
+	// Calculate dynamic thresholds based on number of cores
+	warningThreshold := float64(numCores) * 0.75
+	criticalThreshold := float64(numCores) * 1.5
 
-		// Calculate dynamic thresholds based on number of cores
-		// Healthy: load <= 75% of cores (normal operation)
-		// Warning: 75% < load <= 150% of cores (high load, but manageable)
-		// Critical: load > 150% of cores (sustained overload)
-		warningThreshold := float64(numCores) * 0.75
-		criticalThreshold := float64(numCores) * 1.5
+	details["warning_threshold"] = warningThreshold
+	details["critical_threshold"] = criticalThreshold
 
-		details["warning_threshold"] = warningThreshold
-		details["critical_threshold"] = criticalThreshold
-
-		// Determine status based on load average (use 1-minute as primary indicator)
-		// Also consider 5-minute and 15-minute for sustained load patterns
-		if load1 > criticalThreshold || load5 > criticalThreshold {
-			result.Status = "Critical"
-			result.Message = fmt.Sprintf("Very high load average: %.2f (1m), %.2f (5m), %.2f (15m) - threshold: %.2f (%.0f cores)", 
-				load1, load5, load15, criticalThreshold, float64(numCores))
-		} else if load1 > warningThreshold || load5 > warningThreshold {
-			result.Status = "Warning"
-			result.Message = fmt.Sprintf("High load average: %.2f (1m), %.2f (5m), %.2f (15m) - threshold: %.2f (%.0f cores)", 
-				load1, load5, load15, warningThreshold, float64(numCores))
-		} else {
-			result.Status = "Healthy"
-			result.Message = fmt.Sprintf("Load average is normal: %.2f (1m), %.2f (5m), %.2f (15m) - %.0f cores", 
-				load1, load5, load15, float64(numCores))
-		}
-	} else {
+	// Determine status based on load average
+	// Use 1-minute and 5-minute for sustained load patterns
+	if load1 > criticalThreshold || load5 > criticalThreshold {
+		result.Status = "Critical"
+		result.Message = fmt.Sprintf("Very high load average: %.2f (1m), %.2f (5m), %.2f (15m) - threshold: %.2f (%.0f cores)",
+			load1, load5, load15, criticalThreshold, float64(numCores))
+	} else if load1 > warningThreshold || load5 > warningThreshold {
 		result.Status = "Warning"
-		result.Message = "Could not parse load averages"
+		result.Message = fmt.Sprintf("High load average: %.2f (1m), %.2f (5m), %.2f (15m) - threshold: %.2f (%.0f cores)",
+			load1, load5, load15, warningThreshold, float64(numCores))
+	} else {
+		result.Status = "Healthy"
+		result.Message = fmt.Sprintf("Load average is normal: %.2f (1m), %.2f (5m), %.2f (15m) - %.0f cores",
+			load1, load5, load15, float64(numCores))
 	}
 
 	result.Details = mapToRawExtension(details)
@@ -131,8 +136,11 @@ func (sc *SystemChecker) CheckProcesses(ctx context.Context) *v1alpha1.CheckResu
 	result := &v1alpha1.CheckResult{
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
-		
 	}
+
+	// Add timeout to context
+	ctx, cancel := withTimeout(ctx, 5*time.Second)
+	defer cancel()
 
 	command := "top -bn1 | head -20"
 	result.Command = command
@@ -147,8 +155,15 @@ func (sc *SystemChecker) CheckProcesses(ctx context.Context) *v1alpha1.CheckResu
 		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err := cmd.Output()
 		if err != nil {
-			result.Status = "Critical"
-			result.Message = fmt.Sprintf("Failed to execute top: %v", err)
+			// Don't mark as Critical for transient failures
+			if ctx.Err() == context.DeadlineExceeded {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Process check timed out: %v", err)
+			} else {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Failed to execute top: %v (showing container processes)", err)
+			}
+			details["check_source"] = "failed"
 			result.Details = mapToRawExtension(details)
 			return result
 		}
@@ -213,8 +228,11 @@ func (sc *SystemChecker) CheckResources(ctx context.Context) *v1alpha1.CheckResu
 	result := &v1alpha1.CheckResult{
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
-		
 	}
+
+	// Add timeout to context (vmstat takes ~3 seconds for 3 samples)
+	ctx, cancel := withTimeout(ctx, 8*time.Second)
+	defer cancel()
 
 	command := "vmstat 1 3"
 	result.Command = command
@@ -223,8 +241,15 @@ func (sc *SystemChecker) CheckResources(ctx context.Context) *v1alpha1.CheckResu
 		cmd := exec.CommandContext(ctx, "vmstat", "1", "3")
 		output, err = cmd.Output()
 		if err != nil {
-			result.Status = "Critical"
-			result.Message = fmt.Sprintf("Failed to execute vmstat: %v", err)
+			// Don't mark as Critical for transient failures
+			if ctx.Err() == context.DeadlineExceeded {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Resource check timed out: %v", err)
+			} else {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Failed to execute vmstat: %v", err)
+			}
+			details["check_source"] = "failed"
 			result.Details = mapToRawExtension(details)
 			return result
 		}
@@ -394,80 +419,125 @@ func (sc *SystemChecker) CheckServices(ctx context.Context) *v1alpha1.CheckResul
 }
 
 // CheckMemory performs memory monitoring
+// Uses /proc/meminfo directly instead of parsing free -h output for better reliability
 func (sc *SystemChecker) CheckMemory(ctx context.Context) *v1alpha1.CheckResult {
 	details := make(map[string]interface{})
 	result := &v1alpha1.CheckResult{
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
-		
 	}
 
-	command := "free -h"
-	result.Command = command
-	output, err := runHostCommand(ctx, command)
+	// Add timeout to context
+	ctx, cancel := withTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// Read memory information directly from /proc/meminfo
+	total, available, free, used, buffers, cached, err := readMemInfo(ctx)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "free", "-h")
-		output, err = cmd.Output()
-		if err != nil {
-			result.Status = "Critical"
-			result.Message = fmt.Sprintf("Failed to execute free: %v", err)
-			result.Details = mapToRawExtension(details)
-			return result
+		// Fallback to free command if /proc/meminfo is not accessible
+		command := "free -h"
+		result.Command = command
+		output, cmdErr := runHostCommand(ctx, command)
+		if cmdErr != nil {
+			cmd := exec.CommandContext(ctx, "free", "-h")
+			output, cmdErr = cmd.Output()
+			if cmdErr != nil {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Failed to read memory info: %v (fallback also failed: %v)", err, cmdErr)
+				details["check_source"] = "failed"
+				result.Details = mapToRawExtension(details)
+				return result
+			}
+			details["check_source"] = "container_fallback"
+		} else {
+			details["check_source"] = "host_fallback"
 		}
-		details["check_source"] = "container"
-		result.Command = command
-	} else {
-		details["check_source"] = "host"
-		result.Command = command
-	}
 
-	freeOutput := strings.TrimSpace(string(output))
-	details["free_output"] = freeOutput
+		// Parse free output as fallback
+		freeOutput := strings.TrimSpace(string(output))
+		details["free_output"] = freeOutput
+		lines := strings.Split(freeOutput, "\n")
+		if len(lines) >= 2 {
+			fields := strings.Fields(lines[1])
+			if len(fields) >= 7 {
+				totalStr := fields[1]
+				usedStr := fields[2]
+				freeStr := fields[3]
+				sharedStr := fields[4]
+				buffCacheStr := fields[5]
+				availableStr := fields[6]
 
-	// Parse memory information
-	lines := strings.Split(freeOutput, "\n")
-	if len(lines) >= 2 {
-		// Parse the main memory line
-		fields := strings.Fields(lines[1])
-		if len(fields) >= 7 {
-			total := fields[1]
-			used := fields[2]
-			free := fields[3]
-			shared := fields[4]
-			buffCache := fields[5]
-			available := fields[6]
+				details["total_memory"] = totalStr
+				details["used_memory"] = usedStr
+				details["free_memory"] = freeStr
+				details["shared_memory"] = sharedStr
+				details["buff_cache"] = buffCacheStr
+				details["available_memory"] = availableStr
 
-			details["total_memory"] = total
-			details["used_memory"] = used
-			details["free_memory"] = free
-			details["shared_memory"] = shared
-			details["buff_cache"] = buffCache
-			details["available_memory"] = available
+				if totalBytes, parseErr := parseMemorySize(totalStr); parseErr == nil {
+					if usedBytes, parseErr := parseMemorySize(usedStr); parseErr == nil {
+						usagePercent := float64(usedBytes) / float64(totalBytes) * 100
+						details["memory_usage_percent"] = usagePercent
 
-			// Calculate usage percentage
-			if totalBytes, err := parseMemorySize(total); err == nil {
-				if usedBytes, err := parseMemorySize(used); err == nil {
-					usagePercent := float64(usedBytes) / float64(totalBytes) * 100
-					details["memory_usage_percent"] = usagePercent
-
-					if usagePercent > 90 {
-						result.Status = "Critical"
-						result.Message = fmt.Sprintf("Very high memory usage: %.1f%%", usagePercent)
-					} else if usagePercent > 80 {
-						result.Status = "Warning"
-						result.Message = fmt.Sprintf("High memory usage: %.1f%%", usagePercent)
-					} else {
-						result.Status = "Healthy"
-						result.Message = "Memory usage is normal"
+						if usagePercent > 90 {
+							result.Status = "Critical"
+							result.Message = fmt.Sprintf("Very high memory usage: %.1f%%", usagePercent)
+						} else if usagePercent > 80 {
+							result.Status = "Warning"
+							result.Message = fmt.Sprintf("High memory usage: %.1f%%", usagePercent)
+						} else {
+							result.Status = "Healthy"
+							result.Message = "Memory usage is normal"
+						}
 					}
 				}
 			}
 		}
+
+		if result.Status == "Unknown" {
+			result.Status = "Warning"
+			result.Message = "Memory check completed (using fallback method)"
+		}
+
+		result.Details = mapToRawExtension(details)
+		return result
 	}
 
-	if result.Status == "Unknown" {
+	// Use /proc/meminfo data
+	details["check_source"] = "proc_meminfo"
+	result.Command = "read /proc/meminfo"
+
+	// Convert to human-readable format for display
+	details["total_memory_bytes"] = total
+	details["available_memory_bytes"] = available
+	details["free_memory_bytes"] = free
+	details["used_memory_bytes"] = used
+	details["buffers_bytes"] = buffers
+	details["cached_bytes"] = cached
+
+	// Calculate usage percentage using available memory (more accurate)
+	var usagePercent float64
+	if available > 0 {
+		usagePercent = float64(total-available) / float64(total) * 100
+	} else {
+		// Fallback if MemAvailable is not available
+		usagePercent = float64(used) / float64(total) * 100
+	}
+	details["memory_usage_percent"] = usagePercent
+
+	// Determine status
+	if usagePercent > 90 {
+		result.Status = "Critical"
+		result.Message = fmt.Sprintf("Very high memory usage: %.1f%% (%.1f GB used / %.1f GB total)",
+			usagePercent, float64(used)/(1024*1024*1024), float64(total)/(1024*1024*1024))
+	} else if usagePercent > 80 {
+		result.Status = "Warning"
+		result.Message = fmt.Sprintf("High memory usage: %.1f%% (%.1f GB used / %.1f GB total)",
+			usagePercent, float64(used)/(1024*1024*1024), float64(total)/(1024*1024*1024))
+	} else {
 		result.Status = "Healthy"
-		result.Message = "Memory check completed"
+		result.Message = fmt.Sprintf("Memory usage is normal: %.1f%% (%.1f GB available / %.1f GB total)",
+			usagePercent, float64(available)/(1024*1024*1024), float64(total)/(1024*1024*1024))
 	}
 
 	result.Details = mapToRawExtension(details)
@@ -519,6 +589,7 @@ func parseMemorySize(sizeStr string) (int64, error) {
 // This is important because Linux load averages include these tasks, which can indicate
 // I/O wait issues. Based on Brendan Gregg's analysis:
 // https://www.brendangregg.com/blog/2017-08-08/linux-load-averages.html
+// Uses sliding window to avoid false positives from transient spikes
 func (sc *SystemChecker) CheckUninterruptibleTasks(ctx context.Context) *v1alpha1.CheckResult {
 	details := make(map[string]interface{})
 	result := &v1alpha1.CheckResult{
@@ -526,75 +597,85 @@ func (sc *SystemChecker) CheckUninterruptibleTasks(ctx context.Context) *v1alpha
 		Status:    "Unknown",
 	}
 
-	// Read /proc/stat to get process statistics from the host
-	command := "cat /proc/stat"
-	result.Command = command
-	statOutput, err := runHostCommand(ctx, command)
-	if err != nil {
-		cmd := exec.CommandContext(ctx, "cat", "/proc/stat")
-		statOutput, err = cmd.Output()
-		if err != nil {
-			result.Status = "Critical"
-			result.Message = fmt.Sprintf("Failed to read /proc/stat: %v", err)
-			result.Details = mapToRawExtension(details)
-			return result
-		}
-		result.Command = command
-	} else {
-		result.Command = command
-	}
+	// Add timeout to context
+	ctx, cancel := withTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-	lines := strings.Split(string(statOutput), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "procs_running") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				if running, err := strconv.Atoi(fields[1]); err == nil {
-					details["procs_running"] = running
-				}
+	// Read procs_blocked directly from /proc/stat
+	blocked, err := getProcsBlocked(ctx)
+	if err != nil {
+		// Fallback to command
+		command := "cat /proc/stat"
+		result.Command = command
+		statOutput, cmdErr := runHostCommand(ctx, command)
+		if cmdErr != nil {
+			cmd := exec.CommandContext(ctx, "cat", "/proc/stat")
+			statOutput, cmdErr = cmd.Output()
+			if cmdErr != nil {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Failed to read /proc/stat: %v (fallback also failed: %v)", err, cmdErr)
+				details["check_source"] = "failed"
+				result.Details = mapToRawExtension(details)
+				return result
 			}
+			details["check_source"] = "container_fallback"
+		} else {
+			details["check_source"] = "host_fallback"
 		}
-		if strings.HasPrefix(line, "procs_blocked") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				if blocked, err := strconv.Atoi(fields[1]); err == nil {
-					details["procs_blocked"] = blocked
-					// procs_blocked shows tasks in uninterruptible sleep (D state)
-					if blocked > 10 {
-						result.Status = "Critical"
-						result.Message = fmt.Sprintf("High number of uninterruptible tasks: %d (may indicate I/O wait issues)", blocked)
-					} else if blocked > 5 {
-						result.Status = "Warning"
-						result.Message = fmt.Sprintf("Elevated number of uninterruptible tasks: %d", blocked)
-					} else {
-						result.Status = "Healthy"
-						result.Message = fmt.Sprintf("Uninterruptible tasks count is normal: %d", blocked)
+
+		// Parse output
+		lines := strings.Split(string(statOutput), "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "procs_blocked") {
+				fields := strings.Fields(line)
+				if len(fields) >= 2 {
+					if parsed, parseErr := strconv.Atoi(fields[1]); parseErr == nil {
+						blocked = parsed
+						break
 					}
 				}
 			}
 		}
+	} else {
+		details["check_source"] = "proc_stat"
+		result.Command = "read /proc/stat"
 	}
 
-	// Also read /proc/loadavg to show load averages for context
-	loadCommand := "cat /proc/loadavg"
-	loadOutput, err := runHostCommand(ctx, loadCommand)
-	if err != nil {
-		cmd := exec.CommandContext(ctx, "cat", "/proc/loadavg")
-		loadOutput, err = cmd.Output()
+	details["procs_blocked"] = blocked
+
+	// Use sliding window to track sustained high blocked processes
+	if blocked > 5 {
+		globalBlockedWindow.Add()
 	}
-	if err == nil {
-		loadavgStr := strings.TrimSpace(string(loadOutput))
-		fields := strings.Fields(loadavgStr)
-		if len(fields) >= 3 {
-			details["load_1min"] = fields[0]
-			details["load_5min"] = fields[1]
-			details["load_15min"] = fields[2]
-		}
+	recentHighCount := globalBlockedWindow.Count()
+	details["recent_high_blocked_count"] = recentHighCount
+	details["window_duration_minutes"] = 5
+
+	// Also read /proc/loadavg for context
+	load1, load5, load15, loadErr := readLoadAvg(ctx)
+	if loadErr == nil {
+		details["load_1min"] = load1
+		details["load_5min"] = load5
+		details["load_15min"] = load15
 	}
 
-	if result.Status == "Unknown" {
+	// Determine status with debouncing: require sustained high count
+	// Critical only if we've seen high blocked count multiple times in the window
+	if blocked > 10 && recentHighCount >= 3 {
+		result.Status = "Critical"
+		result.Message = fmt.Sprintf("High number of uninterruptible tasks: %d (sustained, may indicate I/O wait issues)", blocked)
+	} else if blocked > 10 {
+		result.Status = "Warning"
+		result.Message = fmt.Sprintf("High number of uninterruptible tasks: %d (transient, monitoring)", blocked)
+	} else if blocked > 5 && recentHighCount >= 2 {
+		result.Status = "Warning"
+		result.Message = fmt.Sprintf("Elevated number of uninterruptible tasks: %d (sustained)", blocked)
+	} else if blocked > 5 {
+		result.Status = "Warning"
+		result.Message = fmt.Sprintf("Elevated number of uninterruptible tasks: %d (transient)", blocked)
+	} else {
 		result.Status = "Healthy"
-		result.Message = "Uninterruptible tasks check completed"
+		result.Message = fmt.Sprintf("Uninterruptible tasks count is normal: %d", blocked)
 	}
 
 	result.Details = mapToRawExtension(details)
@@ -706,27 +787,40 @@ func (sc *SystemChecker) CheckFileDescriptors(ctx context.Context) *v1alpha1.Che
 		Status:    "Unknown",
 	}
 
-	// Read /proc/sys/fs/file-nr for file descriptor stats
-	command := "cat /proc/sys/fs/file-nr"
-	result.Command = command
-	output, err := runHostCommand(ctx, command)
+	// Add timeout to context
+	ctx, cancel := withTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// Try to read directly from /proc first
+	fileNrPath := "/proc/sys/fs/file-nr"
+	data, err := readProcFile(ctx, fileNrPath)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sh", "-c", command)
-		output, err = cmd.Output()
-		if err != nil {
-			result.Status = "Warning"
-			result.Message = fmt.Sprintf("Failed to read file descriptor stats: %v", err)
-			result.Details = mapToRawExtension(details)
-			return result
+		// Fallback to command
+		command := "cat /proc/sys/fs/file-nr"
+		result.Command = command
+		output, cmdErr := runHostCommand(ctx, command)
+		if cmdErr != nil {
+			cmd := exec.CommandContext(ctx, "sh", "-c", command)
+			output, cmdErr = cmd.Output()
+			if cmdErr != nil {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Failed to read file descriptor stats: %v (fallback also failed: %v)", err, cmdErr)
+				details["check_source"] = "failed"
+				result.Details = mapToRawExtension(details)
+				return result
+			}
+			details["check_source"] = "container_fallback"
+			data = output
+		} else {
+			details["check_source"] = "host_fallback"
+			data = output
 		}
-		details["check_source"] = "container"
-		result.Command = command
 	} else {
-		details["check_source"] = "host"
-		result.Command = command
+		details["check_source"] = "proc_file-nr"
+		result.Command = "read /proc/sys/fs/file-nr"
 	}
 
-	fields := strings.Fields(strings.TrimSpace(string(output)))
+	fields := strings.Fields(strings.TrimSpace(string(data)))
 	if len(fields) >= 3 {
 		if allocated, err := strconv.ParseInt(fields[0], 10, 64); err == nil {
 			details["allocated"] = allocated
@@ -765,6 +859,10 @@ func (sc *SystemChecker) CheckZombieProcesses(ctx context.Context) *v1alpha1.Che
 		Status:    "Unknown",
 	}
 
+	// Add timeout to context
+	ctx, cancel := withTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	command := "ps -eo stat | awk '/^Z/ {c++} END {print c+0}'"
 	result.Command = command
 	output, err := runHostCommand(ctx, command)
@@ -772,8 +870,14 @@ func (sc *SystemChecker) CheckZombieProcesses(ctx context.Context) *v1alpha1.Che
 		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err = cmd.Output()
 		if err != nil {
-			result.Status = "Warning"
-			result.Message = fmt.Sprintf("Failed to check zombie processes: %v", err)
+			if ctx.Err() == context.DeadlineExceeded {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Zombie process check timed out: %v", err)
+			} else {
+				result.Status = "Warning"
+				result.Message = fmt.Sprintf("Failed to check zombie processes: %v", err)
+			}
+			details["check_source"] = "failed"
 			result.Details = mapToRawExtension(details)
 			return result
 		}
@@ -898,12 +1002,17 @@ func (sc *SystemChecker) CheckNTPSync(ctx context.Context) *v1alpha1.CheckResult
 }
 
 // CheckKernelPanics checks for kernel panics in system logs
+// Uses sliding window to track panic events over time
 func (sc *SystemChecker) CheckKernelPanics(ctx context.Context) *v1alpha1.CheckResult {
 	details := make(map[string]interface{})
 	result := &v1alpha1.CheckResult{
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
 	}
+
+	// Add timeout to context
+	ctx, cancel := withTimeout(ctx, 10*time.Second)
+	defer cancel()
 
 	// Check dmesg for kernel panics
 	command := "dmesg | grep -i 'kernel panic\\|Oops\\|BUG' | tail -20"
@@ -932,18 +1041,45 @@ func (sc *SystemChecker) CheckKernelPanics(ctx context.Context) *v1alpha1.CheckR
 	journalOutput, journalErr := runHostCommand(ctx, journalCommand)
 	if journalErr == nil && len(journalOutput) > 0 {
 		details["journal_panic_output"] = string(journalOutput)
+		// Combine outputs
+		if panicOutput != "" {
+			panicOutput = panicOutput + "\n" + string(journalOutput)
+		} else {
+			panicOutput = string(journalOutput)
+		}
 	}
 
 	panicCount := 0
 	if panicOutput != "" {
-		panicCount = len(strings.Split(panicOutput, "\n"))
+		lines := strings.Split(panicOutput, "\n")
+		seen := make(map[string]bool)
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line != "" && !seen[line] {
+				seen[line] = true
+				panicCount++
+				// Add to sliding window for each unique panic event
+				globalPanicWindow.Add()
+			}
+		}
 	}
 
 	details["panic_count"] = panicCount
+	recentPanicCount := globalPanicWindow.Count()
+	details["recent_panic_count_in_window"] = recentPanicCount
+	details["window_duration_minutes"] = 30
+	if lastEvent := globalPanicWindow.LastEvent(); !lastEvent.IsZero() {
+		details["last_panic_event"] = lastEvent.Format(time.RFC3339)
+	}
 
-	if panicCount > 0 {
+	// Kernel panics are always serious, but use window to indicate if it's ongoing
+	if panicCount > 0 || recentPanicCount > 0 {
 		result.Status = "Critical"
-		result.Message = fmt.Sprintf("Found %d kernel panic/Oops/BUG events", panicCount)
+		if recentPanicCount > 0 {
+			result.Message = fmt.Sprintf("Found %d kernel panic/Oops/BUG events (recent: %d in last 30 min)", panicCount, recentPanicCount)
+		} else {
+			result.Message = fmt.Sprintf("Found %d kernel panic/Oops/BUG events", panicCount)
+		}
 	} else {
 		result.Status = "Healthy"
 		result.Message = "No kernel panics detected"
@@ -954,12 +1090,17 @@ func (sc *SystemChecker) CheckKernelPanics(ctx context.Context) *v1alpha1.CheckR
 }
 
 // CheckOOMKiller checks for OOM killer events
+// Uses sliding window to avoid false positives from transient events
 func (sc *SystemChecker) CheckOOMKiller(ctx context.Context) *v1alpha1.CheckResult {
 	details := make(map[string]interface{})
 	result := &v1alpha1.CheckResult{
 		Timestamp: metav1.Now(),
 		Status:    "Unknown",
 	}
+
+	// Add timeout to context
+	ctx, cancel := withTimeout(ctx, 10*time.Second)
+	defer cancel()
 
 	// Check dmesg for OOM killer events (limit to last hour to avoid stale entries)
 	dmesgCmd := "dmesg --since=-1h | grep -i 'Out of memory\\|oom-killer\\|killed process' | tail -20"
@@ -1016,15 +1157,31 @@ func (sc *SystemChecker) CheckOOMKiller(ctx context.Context) *v1alpha1.CheckResu
 			if line != "" && !seen[line] {
 				seen[line] = true
 				oomCount++
+				// Add to sliding window for each unique OOM event
+				globalOOMWindow.Add()
 			}
 		}
 	}
 
 	details["oom_count"] = oomCount
+	recentOOMCount := globalOOMWindow.Count()
+	details["recent_oom_count_in_window"] = recentOOMCount
+	details["window_duration_minutes"] = 10
+	if lastEvent := globalOOMWindow.LastEvent(); !lastEvent.IsZero() {
+		details["last_oom_event"] = lastEvent.Format(time.RFC3339)
+	}
 
-	if oomCount > 0 {
+	// Use sliding window: Warning after 1 event, Critical only if multiple events in window
+	if recentOOMCount >= 3 {
+		result.Status = "Critical"
+		result.Message = fmt.Sprintf("Found %d OOM killer events in the last 10 minutes (sustained issue)", recentOOMCount)
+	} else if oomCount > 0 || recentOOMCount > 0 {
 		result.Status = "Warning"
-		result.Message = fmt.Sprintf("Found %d OOM killer events", oomCount)
+		if recentOOMCount > 0 {
+			result.Message = fmt.Sprintf("Found %d OOM killer events (recent: %d in last 10 min)", oomCount, recentOOMCount)
+		} else {
+			result.Message = fmt.Sprintf("Found %d OOM killer events", oomCount)
+		}
 	} else {
 		result.Status = "Healthy"
 		result.Message = "No OOM killer events detected"
