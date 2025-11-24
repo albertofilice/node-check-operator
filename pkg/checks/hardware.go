@@ -420,15 +420,16 @@ func (hc *HardwareChecker) CheckMemoryErrors(ctx context.Context) *v1alpha1.Chec
 		Status:    "Unknown",
 	}
 
-	// Use more specific regex to avoid false positives from network interface names
+	// Use more specific regex to avoid false positives
 	// Match EDAC errors, MCE (Machine Check Exception), or actual memory errors
-	// Exclude lines that contain interface names or MAC addresses
-	command := "dmesg | grep -iE '\\b(EDAC|MCE|memory error|ecc error)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface)' | tail -50"
+	// Exclude initialization messages and interface names
+	// Exclude: "Giving out device", "Ver:", version numbers, initialization messages, "HANDLING IBECC" during boot
+	command := "dmesg | grep -iE '\\b(EDAC|MCE|memory error|ecc error)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface|Giving out device|Ver:|^\\[\\s*[0-9]+\\.[0-9]+\\]\\s*EDAC.*Ver|^\\[\\s*[0-9]+\\.[0-9]+\\]\\s*EDAC.*v[0-9]|^\\[\\s*[0-9]+\\.[0-9]+\\]\\s*EDAC.*Giving out)' | tail -50"
 	result.Command = command
 
 	output, err := runHostCommand(ctx, command)
 	if err != nil {
-		cmd := exec.CommandContext(ctx, "sh", "-c", "dmesg | grep -iE '\\b(EDAC|MCE|memory error|ecc error)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface)' | tail -50")
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		output, err = cmd.Output()
 		if err != nil {
 			details["check_source"] = "container"
@@ -446,7 +447,8 @@ func (hc *HardwareChecker) CheckMemoryErrors(ctx context.Context) *v1alpha1.Chec
 	details["memory_error_output"] = memErrorOutput
 
 	// Also check journalctl with more specific pattern
-	journalOutput, journalErr := runHostCommand(ctx, "journalctl -k --since '24 hours ago' --no-pager 2>/dev/null | grep -iE '\\b(EDAC\\b.*(CE|UE|Error|ecc|memory)|mce:\\s*\\[Hardware Error\\])' | grep -vE '(macvtap|tun|bridge|@if|veth|interface)' | tail -50")
+	// Only match actual errors (UE - Uncorrected Errors, Hardware Error), not initialization
+	journalOutput, journalErr := runHostCommand(ctx, "journalctl -k -p err --since '1 hour ago' --no-pager 2>/dev/null | grep -iE '\\b(EDAC.*\\b(UE|Uncorrected|Hardware Error)|MCE:\\s*\\[Hardware Error\\]|memory.*error.*uncorrected)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface|Giving out device)' | tail -50")
 	if journalErr == nil && len(journalOutput) > 0 {
 		journalLines := strings.TrimSpace(string(journalOutput))
 		if memErrorOutput != "" {
@@ -463,25 +465,104 @@ func (hc *HardwareChecker) CheckMemoryErrors(ctx context.Context) *v1alpha1.Chec
 		details["edac_error_counts"] = string(edacOutput)
 	}
 
-	errorCount := 0
+	// Parse and filter errors more carefully
+	realErrors := []string{}
+	correctedErrors := []string{}
+	uncorrectedErrors := []string{}
+	
 	if memErrorOutput != "" {
-		// Count unique lines (remove duplicates)
 		lines := strings.Split(memErrorOutput, "\n")
 		seen := make(map[string]bool)
+		
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
-			if line != "" && !seen[line] {
-				seen[line] = true
-				errorCount++
+			if line == "" || seen[line] {
+				continue
+			}
+			
+			// Skip initialization messages
+			lower := strings.ToLower(line)
+			if strings.Contains(lower, "giving out device") ||
+				strings.Contains(lower, "ver:") ||
+				strings.Contains(lower, "version") ||
+				strings.Contains(lower, "controller") && strings.Contains(lower, "interrupt") {
+				// Skip initialization messages
+				continue
+			}
+			
+			// Check timestamp - skip messages from first 10 seconds (initialization)
+			if strings.HasPrefix(line, "[") {
+				// Extract timestamp from dmesg format: [seconds.microseconds]
+				parts := strings.SplitN(line, "]", 2)
+				if len(parts) == 2 {
+					timestampStr := strings.TrimPrefix(parts[0], "[")
+					if timestamp, parseErr := strconv.ParseFloat(timestampStr, 64); parseErr == nil {
+						if timestamp < 10.0 {
+							// Skip initialization messages (first 10 seconds)
+							// But allow "HANDLING IBECC MEMORY ERROR" if it's not initialization
+							if !strings.Contains(lower, "handling ibecc memory error") {
+								continue
+							}
+						}
+					}
+				}
+			}
+			
+			// Skip "HANDLING IBECC MEMORY ERROR" during initialization (these are informational)
+			// Only count if it's a real error (UE - Uncorrected Error)
+			if strings.Contains(lower, "handling ibecc memory error") {
+				// This is just informational during initialization, skip it
+				continue
+			}
+			
+			seen[line] = true
+			
+			// Categorize errors
+			if strings.Contains(lower, "uncorrected") || strings.Contains(lower, "\\bue\\b") || strings.Contains(lower, "hardware error") {
+				uncorrectedErrors = append(uncorrectedErrors, line)
+				realErrors = append(realErrors, line)
+			} else if strings.Contains(lower, "corrected") || strings.Contains(lower, "\\bce\\b") {
+				correctedErrors = append(correctedErrors, line)
+				// CE (Corrected Errors) are less critical, but still worth noting
+			} else if strings.Contains(lower, "mce") || strings.Contains(lower, "machine check") {
+				// MCE errors are always serious
+				realErrors = append(realErrors, line)
+			} else {
+				// Other memory errors - include them
+				realErrors = append(realErrors, line)
 			}
 		}
 	}
 
-	details["error_count"] = errorCount
+	details["error_count"] = len(realErrors)
+	details["corrected_errors"] = len(correctedErrors)
+	details["uncorrected_errors"] = len(uncorrectedErrors)
+	if len(correctedErrors) > 0 {
+		sampleSize := 5
+		if len(correctedErrors) < sampleSize {
+			sampleSize = len(correctedErrors)
+		}
+		details["corrected_error_samples"] = correctedErrors[:sampleSize]
+	}
+	if len(uncorrectedErrors) > 0 {
+		sampleSize := 5
+		if len(uncorrectedErrors) < sampleSize {
+			sampleSize = len(uncorrectedErrors)
+		}
+		details["uncorrected_error_samples"] = uncorrectedErrors[:sampleSize]
+	}
 
-	if errorCount > 0 {
+	// Determine status: Uncorrected Errors are Critical, Corrected Errors are Warning
+	if len(uncorrectedErrors) > 0 {
 		result.Status = "Critical"
-		result.Message = fmt.Sprintf("Found %d memory error events (ECC/MCE/EDAC)", errorCount)
+		result.Message = fmt.Sprintf("Found %d uncorrected memory errors (UE) - %d total memory error events", len(uncorrectedErrors), len(realErrors))
+	} else if len(correctedErrors) > 0 && len(realErrors) == 0 {
+		// Only corrected errors, no real errors
+		result.Status = "Warning"
+		result.Message = fmt.Sprintf("Found %d corrected memory errors (CE) - these are handled automatically", len(correctedErrors))
+	} else if len(realErrors) > 0 {
+		result.Status = "Warning"
+		result.Message = fmt.Sprintf("Found %d memory error events (ECC/MCE/EDAC)", len(realErrors))
 	} else {
 		result.Status = "Healthy"
 		result.Message = "No memory errors detected"

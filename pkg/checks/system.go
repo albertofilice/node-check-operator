@@ -398,9 +398,20 @@ func (sc *SystemChecker) CheckResources(ctx context.Context) *v1alpha1.CheckResu
 	}
 
 	// Check for high swap usage
-	if swapUsed, ok := details["swap_used_kb"].(int64); ok && swapUsed > 0 {
+	// Only warn if swap is actively being used (swap in/out activity), not just allocated
+	// Swap can be configured and have some KB allocated without being a problem
+	swapIn, _ := details["swap_in_per_sec"].(int64)
+	swapOut, _ := details["swap_out_per_sec"].(int64)
+	swapUsed, hasSwapUsed := details["swap_used_kb"].(int64)
+	
+	if (swapIn > 0 || swapOut > 0) && hasSwapUsed && swapUsed > 0 {
+		// Active swap usage - this is a concern
 		result.Status = "Warning"
-		result.Message = fmt.Sprintf("Swap is being used: %d KB", swapUsed)
+		result.Message = fmt.Sprintf("Swap is actively being used: %d KB (si: %d, so: %d pages/sec)", swapUsed, swapIn, swapOut)
+	} else if hasSwapUsed && swapUsed > 0 {
+		// Swap allocated but not actively used - this is OK
+		result.Status = "Healthy"
+		result.Message = fmt.Sprintf("Resource usage is normal (swap allocated: %d KB, but not actively used)", swapUsed)
 	} else {
 		result.Status = "Healthy"
 		result.Message = "Resource usage is normal"
@@ -819,10 +830,14 @@ func (sc *SystemChecker) CheckSystemLogs(ctx context.Context) *v1alpha1.CheckRes
 
 	for _, line := range filteredLines {
 		lower := strings.ToLower(line)
-		if strings.Contains(lower, "panic") ||
-			strings.Contains(lower, "fatal") ||
-			strings.Contains(lower, "kernel") ||
-			strings.Contains(lower, "oom") {
+		// Be more specific about critical errors to avoid false positives
+		// "kernel" alone is too generic and can match informational messages
+		if strings.Contains(lower, "kernel panic") ||
+			strings.Contains(lower, "panic:") ||
+			strings.Contains(lower, "fatal error") ||
+			strings.Contains(lower, "fatal:") ||
+			strings.Contains(lower, "oom") ||
+			strings.Contains(lower, "out of memory") {
 			criticalErrors = append(criticalErrors, line)
 		}
 	}
@@ -1437,6 +1452,7 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 
 	// Analyze interrupt distribution for each IRQ device
 	imbalancedIRQs := []map[string]interface{}{}
+	msixExcludedCount := 0
 	const imbalanceThreshold = 0.60 // 60% threshold
 
 	for i := 1; i < len(lines); i++ {
@@ -1456,6 +1472,14 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 			irqName = strings.Join(fields[cpuStartIdx+cpuCount:], " ")
 		} else {
 			irqName = fields[0] // Use IRQ number if no description
+		}
+
+		// Skip MSI-X interrupts - they are designed to be on a single CPU core for performance
+		// MSI-X interrupts with 100% imbalance are normal and desired behavior
+		irqNameUpper := strings.ToUpper(irqName)
+		if strings.Contains(irqNameUpper, "MSI-X") || strings.Contains(irqNameUpper, "MSIX") {
+			msixExcludedCount++
+			continue
 		}
 
 		// Parse interrupt counts for each CPU
@@ -1504,6 +1528,7 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 	details["imbalanced_irqs"] = imbalancedIRQs
 	details["imbalance_threshold"] = "60%"
 	details["total_irqs_checked"] = len(lines) - 1
+	details["msix_interrupts_excluded"] = msixExcludedCount
 
 	// Determine status: Warning if imbalanced, never Critical
 	if len(imbalancedIRQs) > 0 {
@@ -1515,7 +1540,7 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 		} else {
 			result.Message = fmt.Sprintf("IRQ imbalance detected: %d devices with >60%% imbalance", len(imbalancedIRQs))
 		}
-		details["note"] = "IRQ imbalance is common on NUMA systems and OpenShift masters with ovn-kubernetes. This is a warning, not critical."
+		details["note"] = "IRQ imbalance is common on NUMA systems and OpenShift masters with ovn-kubernetes. MSI-X interrupts are excluded (designed for single-CPU assignment). This is a warning, not critical."
 	} else {
 		result.Status = "Healthy"
 		result.Message = fmt.Sprintf("Interrupt balance is normal (%d IRQs checked)", len(lines)-1)
@@ -1786,15 +1811,23 @@ func (sc *SystemChecker) CheckSwapActivity(ctx context.Context) *v1alpha1.CheckR
 			si, _ := details["swap_in_per_sec"].(int64)
 			so, _ := details["swap_out_per_sec"].(int64)
 			
+			// Only warn on significant swap activity
+			// Low/transient swap activity is normal and not a concern
 			if si > 100 || so > 100 {
 				result.Status = "Warning"
 				result.Message = fmt.Sprintf("High swap activity detected (si: %d, so: %d pages/sec)", si, so)
-			} else if si > 0 || so > 0 {
+			} else if si > 10 || so > 10 {
+				// Moderate swap activity - worth noting but not critical
 				result.Status = "Warning"
-				result.Message = fmt.Sprintf("Swap activity detected (si: %d, so: %d pages/sec)", si, so)
+				result.Message = fmt.Sprintf("Moderate swap activity detected (si: %d, so: %d pages/sec)", si, so)
 			} else {
+				// Low or no swap activity - normal
 				result.Status = "Healthy"
-				result.Message = "No swap activity detected"
+				if si > 0 || so > 0 {
+					result.Message = fmt.Sprintf("Minimal swap activity (si: %d, so: %d pages/sec) - normal", si, so)
+				} else {
+					result.Message = "No swap activity detected"
+				}
 			}
 		}
 	}
