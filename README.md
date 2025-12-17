@@ -143,6 +143,15 @@ For production, it is recommended to use a container registry:
   --image-name my-org/node-check-operator \
   --version v1.0.0
 ```
+**Enable console plugin on OpenShift:**
+
+When the installation is done, the enable console plugin is required to have it displayed on the console:
+
+```
+Go to Administration -> Dynamic Plugins -> node-check-console-plugin -> Disabled
+
+Move it to Enabled and reload the page
+```
 
 ### Uninstall
 
