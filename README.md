@@ -377,7 +377,7 @@ The Node Details tab provides in-depth information for each node, including indi
 
 ## Prometheus Metrics
 
-The operator exposes metrics on `/metrics` (port 8080) that are automatically collected by Prometheus via ServiceMonitor.
+The operator exposes metrics on `/metrics` (port 31680) that are automatically collected by Prometheus via ServiceMonitor.
 
 ### Aggregate Metrics
 
@@ -602,8 +602,8 @@ kubectl get svc node-check-operator-metrics -n node-check-operator-system
 
 # Test metrics endpoint directly
 kubectl port-forward -n node-check-operator-system \
-  svc/node-check-operator-metrics 8080:8080
-curl http://localhost:8080/metrics | grep nodecheck
+  svc/node-check-operator-metrics 31680:31680
+curl http://localhost:31680/metrics | grep nodecheck
 ```
 
 ### Permission Denied on Nodes

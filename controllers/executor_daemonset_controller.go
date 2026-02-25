@@ -111,7 +111,7 @@ func (r *ExecutorDaemonSetReconciler) Reconcile(ctx context.Context, req ctrl.Re
 func (r *ExecutorDaemonSetReconciler) buildDaemonSet(name, namespace string, nodeChecks *nodecheckv1alpha1.NodeCheckList) appsv1.DaemonSet {
 	image := r.Image
 	if image == "" {
-		image = "quay.io/rh_ee_afilice/node-check-operator:v1.0.7"
+		image = "quay.io/rh_ee_afilice/node-check-operator:v1.0.8"
 	}
 
 	// Collect NodeSelector and Tolerations from all NodeChecks
@@ -275,18 +275,10 @@ func (r *ExecutorDaemonSetReconciler) buildDaemonSet(name, namespace string, nod
 									ReadOnly:  true,
 								},
 							},
-							Ports: []corev1.ContainerPort{
-								{
-									ContainerPort: 8080,
-									Name:          "metrics",
-									Protocol:      corev1.ProtocolTCP,
-								},
-								{
-									ContainerPort: 8081,
-									Name:          "health",
-									Protocol:      corev1.ProtocolTCP,
-								},
-							},
+							// Do not declare ContainerPort when HostNetwork is true: the scheduler would
+							// require those host ports to be free on the node, causing "didn't have free
+							// ports for the requested pod ports". The executor can still listen on 8080/8081
+							// (or configurable ports) without declaring them here.
 							Resources: corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("500m"),

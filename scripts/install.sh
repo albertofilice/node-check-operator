@@ -696,7 +696,7 @@ show_info() {
         echo "  Or: /nodecheck in the console"
         echo
         echo "Web Dashboard:"
-        echo "  Port-forward: $KUBECTL_CMD port-forward -n ${NAMESPACE} svc/node-check-operator-dashboard 8082:8082"
+        echo "  Port-forward: $KUBECTL_CMD port-forward -n ${NAMESPACE} svc/node-check-operator-dashboard 8082:31682"
         echo "  Then open: http://localhost:8082"
         echo
     fi

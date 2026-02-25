@@ -53,32 +53,32 @@ func (sc *SystemChecker) CheckUptime(ctx context.Context) *v1alpha1.CheckResult 
 	load1, load5, load15, err := readLoadAvg(ctx)
 	if err != nil {
 		// Fallback to uptime command if /proc/loadavg is not accessible
-		command := "uptime"
-		result.Command = command
+	command := "uptime"
+	result.Command = command
 		output, cmdErr := runHostCommand(ctx, command)
 		if cmdErr != nil {
-			cmd := exec.CommandContext(ctx, command)
+		cmd := exec.CommandContext(ctx, command)
 			output, cmdErr = cmd.Output()
 			if cmdErr != nil {
 				result.Status = "Warning"
 				result.Message = fmt.Sprintf("Failed to read load averages: %v (fallback also failed: %v)", err, cmdErr)
 				details["check_source"] = "failed"
-				result.Details = mapToRawExtension(details)
-				return result
-			}
-			details["check_source"] = "container_fallback"
-		} else {
-			details["check_source"] = "host_fallback"
+			result.Details = mapToRawExtension(details)
+			return result
 		}
+			details["check_source"] = "container_fallback"
+	} else {
+			details["check_source"] = "host_fallback"
+	}
 
 		// Parse uptime output as fallback
-		uptimeStr := strings.TrimSpace(string(output))
-		details["uptime"] = uptimeStr
-		parts := strings.Fields(uptimeStr)
-		if len(parts) >= 10 {
-			load1Str := strings.TrimSuffix(parts[len(parts)-3], ",")
-			load5Str := strings.TrimSuffix(parts[len(parts)-2], ",")
-			load15Str := parts[len(parts)-1]
+	uptimeStr := strings.TrimSpace(string(output))
+	details["uptime"] = uptimeStr
+	parts := strings.Fields(uptimeStr)
+	if len(parts) >= 10 {
+		load1Str := strings.TrimSuffix(parts[len(parts)-3], ",")
+		load5Str := strings.TrimSuffix(parts[len(parts)-2], ",")
+		load15Str := parts[len(parts)-1]
 			load1, _ = strconv.ParseFloat(load1Str, 64)
 			load5, _ = strconv.ParseFloat(load5Str, 64)
 			load15, _ = strconv.ParseFloat(load15Str, 64)
@@ -100,16 +100,16 @@ func (sc *SystemChecker) CheckUptime(ctx context.Context) *v1alpha1.CheckResult 
 	}
 	details["cpu_cores"] = numCores
 
-	details["load_1min"] = load1
-	details["load_5min"] = load5
-	details["load_15min"] = load15
+		details["load_1min"] = load1
+		details["load_5min"] = load5
+		details["load_15min"] = load15
 
-	// Calculate dynamic thresholds based on number of cores
-	warningThreshold := float64(numCores) * 0.75
-	criticalThreshold := float64(numCores) * 1.5
+		// Calculate dynamic thresholds based on number of cores
+		warningThreshold := float64(numCores) * 0.75
+		criticalThreshold := float64(numCores) * 1.5
 
-	details["warning_threshold"] = warningThreshold
-	details["critical_threshold"] = criticalThreshold
+		details["warning_threshold"] = warningThreshold
+		details["critical_threshold"] = criticalThreshold
 
 	// Read iowait from /proc/stat to better assess load average
 	// High load with low iowait = CPU-bound (not a problem)
@@ -186,19 +186,19 @@ func (sc *SystemChecker) CheckUptime(ctx context.Context) *v1alpha1.CheckResult 
 		} else {
 			// No iowait data available, use standard thresholds
 			if highLoad {
-				result.Status = "Critical"
-				result.Message = fmt.Sprintf("Very high load average: %.2f (1m), %.2f (5m), %.2f (15m) - threshold: %.2f (%.0f cores)",
-					load1, load5, load15, criticalThreshold, float64(numCores))
+			result.Status = "Critical"
+			result.Message = fmt.Sprintf("Very high load average: %.2f (1m), %.2f (5m), %.2f (15m) - threshold: %.2f (%.0f cores)", 
+				load1, load5, load15, criticalThreshold, float64(numCores))
 			} else {
-				result.Status = "Warning"
-				result.Message = fmt.Sprintf("High load average: %.2f (1m), %.2f (5m), %.2f (15m) - threshold: %.2f (%.0f cores)",
-					load1, load5, load15, warningThreshold, float64(numCores))
+			result.Status = "Warning"
+			result.Message = fmt.Sprintf("High load average: %.2f (1m), %.2f (5m), %.2f (15m) - threshold: %.2f (%.0f cores)", 
+				load1, load5, load15, warningThreshold, float64(numCores))
 			}
 		}
-	} else {
-		result.Status = "Healthy"
-		result.Message = fmt.Sprintf("Load average is normal: %.2f (1m), %.2f (5m), %.2f (15m) - %.0f cores",
-			load1, load5, load15, float64(numCores))
+		} else {
+			result.Status = "Healthy"
+			result.Message = fmt.Sprintf("Load average is normal: %.2f (1m), %.2f (5m), %.2f (15m) - %.0f cores", 
+				load1, load5, load15, float64(numCores))
 		if iowaitPercent > 0 {
 			result.Message += fmt.Sprintf(" - I/O wait: %.1f%%", iowaitPercent)
 		}
@@ -325,7 +325,7 @@ func (sc *SystemChecker) CheckResources(ctx context.Context) *v1alpha1.CheckResu
 				result.Message = fmt.Sprintf("Resource check timed out: %v", err)
 			} else {
 				result.Status = "Warning"
-				result.Message = fmt.Sprintf("Failed to execute vmstat: %v", err)
+			result.Message = fmt.Sprintf("Failed to execute vmstat: %v", err)
 			}
 			details["check_source"] = "failed"
 			result.Details = mapToRawExtension(details)
@@ -525,31 +525,31 @@ func (sc *SystemChecker) CheckMemory(ctx context.Context) *v1alpha1.CheckResult 
 	total, available, free, used, buffers, cached, err := readMemInfo(ctx)
 	if err != nil {
 		// Fallback to free command if /proc/meminfo is not accessible
-		command := "free -h"
-		result.Command = command
+	command := "free -h"
+	result.Command = command
 		output, cmdErr := runHostCommand(ctx, command)
 		if cmdErr != nil {
-			cmd := exec.CommandContext(ctx, "free", "-h")
+		cmd := exec.CommandContext(ctx, "free", "-h")
 			output, cmdErr = cmd.Output()
 			if cmdErr != nil {
 				result.Status = "Warning"
 				result.Message = fmt.Sprintf("Failed to read memory info: %v (fallback also failed: %v)", err, cmdErr)
 				details["check_source"] = "failed"
-				result.Details = mapToRawExtension(details)
-				return result
-			}
-			details["check_source"] = "container_fallback"
-		} else {
-			details["check_source"] = "host_fallback"
+			result.Details = mapToRawExtension(details)
+			return result
 		}
+			details["check_source"] = "container_fallback"
+	} else {
+			details["check_source"] = "host_fallback"
+	}
 
 		// Parse free output as fallback
-		freeOutput := strings.TrimSpace(string(output))
-		details["free_output"] = freeOutput
-		lines := strings.Split(freeOutput, "\n")
-		if len(lines) >= 2 {
-			fields := strings.Fields(lines[1])
-			if len(fields) >= 7 {
+	freeOutput := strings.TrimSpace(string(output))
+	details["free_output"] = freeOutput
+	lines := strings.Split(freeOutput, "\n")
+	if len(lines) >= 2 {
+		fields := strings.Fields(lines[1])
+		if len(fields) >= 7 {
 				totalStr := fields[1]
 				usedStr := fields[2]
 				freeStr := fields[3]
@@ -566,25 +566,25 @@ func (sc *SystemChecker) CheckMemory(ctx context.Context) *v1alpha1.CheckResult 
 
 				if totalBytes, parseErr := parseMemorySize(totalStr); parseErr == nil {
 					if usedBytes, parseErr := parseMemorySize(usedStr); parseErr == nil {
-						usagePercent := float64(usedBytes) / float64(totalBytes) * 100
-						details["memory_usage_percent"] = usagePercent
+					usagePercent := float64(usedBytes) / float64(totalBytes) * 100
+					details["memory_usage_percent"] = usagePercent
 
-						if usagePercent > 90 {
-							result.Status = "Critical"
-							result.Message = fmt.Sprintf("Very high memory usage: %.1f%%", usagePercent)
-						} else if usagePercent > 80 {
-							result.Status = "Warning"
-							result.Message = fmt.Sprintf("High memory usage: %.1f%%", usagePercent)
-						} else {
-							result.Status = "Healthy"
-							result.Message = "Memory usage is normal"
-						}
+					if usagePercent > 90 {
+						result.Status = "Critical"
+						result.Message = fmt.Sprintf("Very high memory usage: %.1f%%", usagePercent)
+					} else if usagePercent > 80 {
+						result.Status = "Warning"
+						result.Message = fmt.Sprintf("High memory usage: %.1f%%", usagePercent)
+					} else {
+						result.Status = "Healthy"
+						result.Message = "Memory usage is normal"
 					}
 				}
 			}
 		}
+	}
 
-		if result.Status == "Unknown" {
+	if result.Status == "Unknown" {
 			result.Status = "Warning"
 			result.Message = "Memory check completed (using fallback method)"
 		}
@@ -695,30 +695,30 @@ func (sc *SystemChecker) CheckUninterruptibleTasks(ctx context.Context) *v1alpha
 	blocked, err := getProcsBlocked(ctx)
 	if err != nil {
 		// Fallback to command
-		command := "cat /proc/stat"
-		result.Command = command
+	command := "cat /proc/stat"
+	result.Command = command
 		statOutput, cmdErr := runHostCommand(ctx, command)
 		if cmdErr != nil {
-			cmd := exec.CommandContext(ctx, "cat", "/proc/stat")
+		cmd := exec.CommandContext(ctx, "cat", "/proc/stat")
 			statOutput, cmdErr = cmd.Output()
 			if cmdErr != nil {
 				result.Status = "Warning"
 				result.Message = fmt.Sprintf("Failed to read /proc/stat: %v (fallback also failed: %v)", err, cmdErr)
 				details["check_source"] = "failed"
-				result.Details = mapToRawExtension(details)
-				return result
-			}
-			details["check_source"] = "container_fallback"
-		} else {
-			details["check_source"] = "host_fallback"
+			result.Details = mapToRawExtension(details)
+			return result
 		}
+			details["check_source"] = "container_fallback"
+	} else {
+			details["check_source"] = "host_fallback"
+	}
 
 		// Parse output
-		lines := strings.Split(string(statOutput), "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "procs_blocked") {
-				fields := strings.Fields(line)
-				if len(fields) >= 2 {
+	lines := strings.Split(string(statOutput), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "procs_blocked") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
 					if parsed, parseErr := strconv.Atoi(fields[1]); parseErr == nil {
 						blocked = parsed
 						break
@@ -790,10 +790,10 @@ func (sc *SystemChecker) CheckSystemLogs(ctx context.Context) *v1alpha1.CheckRes
 		result.Message = "Systemd not available in this environment"
 		details["note"] = "System has not been booted with systemd. System log monitoring requires systemd/journald."
 		details["check_source"] = "systemd_not_available"
-		result.Details = mapToRawExtension(details)
-		return result
-	}
-	
+			result.Details = mapToRawExtension(details)
+			return result
+		}
+
 	// If there was an error (but systemd is available), it might be an access issue
 	if err != nil || len(output) == 0 {
 		result.Status = "Warning"
@@ -893,22 +893,22 @@ func (sc *SystemChecker) CheckFileDescriptors(ctx context.Context) *v1alpha1.Che
 	data, err := readProcFile(ctx, fileNrPath)
 	if err != nil {
 		// Fallback to command
-		command := "cat /proc/sys/fs/file-nr"
-		result.Command = command
+	command := "cat /proc/sys/fs/file-nr"
+	result.Command = command
 		output, cmdErr := runHostCommand(ctx, command)
 		if cmdErr != nil {
-			cmd := exec.CommandContext(ctx, "sh", "-c", command)
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 			output, cmdErr = cmd.Output()
 			if cmdErr != nil {
-				result.Status = "Warning"
+			result.Status = "Warning"
 				result.Message = fmt.Sprintf("Failed to read file descriptor stats: %v (fallback also failed: %v)", err, cmdErr)
 				details["check_source"] = "failed"
-				result.Details = mapToRawExtension(details)
-				return result
-			}
+			result.Details = mapToRawExtension(details)
+			return result
+		}
 			details["check_source"] = "container_fallback"
 			data = output
-		} else {
+	} else {
 			details["check_source"] = "host_fallback"
 			data = output
 		}
@@ -934,7 +934,7 @@ func (sc *SystemChecker) CheckFileDescriptors(ctx context.Context) *v1alpha1.Che
 				// No limit configured - cannot calculate percentage, just report usage
 				details["max_unlimited"] = true
 				details["note"] = "File descriptor limit is unlimited (LongMax)"
-				if allocated, ok := details["allocated"].(int64); ok {
+			if allocated, ok := details["allocated"].(int64); ok {
 					result.Status = "Healthy"
 					result.Message = fmt.Sprintf("File descriptor usage: %d (no limit configured)", allocated)
 				} else {
@@ -986,8 +986,8 @@ func (sc *SystemChecker) CheckZombieProcesses(ctx context.Context) *v1alpha1.Che
 				result.Status = "Warning"
 				result.Message = fmt.Sprintf("Zombie process check timed out: %v", err)
 			} else {
-				result.Status = "Warning"
-				result.Message = fmt.Sprintf("Failed to check zombie processes: %v", err)
+			result.Status = "Warning"
+			result.Message = fmt.Sprintf("Failed to check zombie processes: %v", err)
 			}
 			details["check_source"] = "failed"
 			result.Details = mapToRawExtension(details)
@@ -1196,7 +1196,7 @@ func (sc *SystemChecker) CheckKernelPanics(ctx context.Context) *v1alpha1.CheckR
 		if recentPanicCount > 0 {
 			result.Message = fmt.Sprintf("Found %d kernel panic/Oops/BUG events (recent: %d in last 30 min)", panicCount, recentPanicCount)
 		} else {
-			result.Message = fmt.Sprintf("Found %d kernel panic/Oops/BUG events", panicCount)
+		result.Message = fmt.Sprintf("Found %d kernel panic/Oops/BUG events", panicCount)
 		}
 	} else {
 		result.Status = "Healthy"
@@ -1306,7 +1306,7 @@ func (sc *SystemChecker) CheckOOMKiller(ctx context.Context) *v1alpha1.CheckResu
 		if recentOOMCount > 0 {
 			result.Message = fmt.Sprintf("Found %d OOM killer events (recent: %d in last 10 min)", oomCount, recentOOMCount)
 		} else {
-			result.Message = fmt.Sprintf("Found %d OOM killer events", oomCount)
+		result.Message = fmt.Sprintf("Found %d OOM killer events", oomCount)
 		}
 	} else {
 		result.Status = "Healthy"
@@ -1447,7 +1447,7 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 		return result
 	}
 
-	details["cpu_count"] = cpuCount
+		details["cpu_count"] = cpuCount
 	details["cpu_start_index"] = cpuStartIdx
 
 	// Analyze interrupt distribution for each IRQ device
@@ -1474,13 +1474,29 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 			irqName = fields[0] // Use IRQ number if no description
 		}
 
-		// Skip MSI-X interrupts - they are designed to be on a single CPU core for performance
-		// MSI-X interrupts with 100% imbalance are normal and desired behavior
+		// Skip MSI-X and MSI interrupts - they are designed to be on a single CPU core for performance
+		// MSI-X/MSI interrupts with 100% imbalance are normal and desired behavior
 		irqNameUpper := strings.ToUpper(irqName)
 		if strings.Contains(irqNameUpper, "MSI-X") || strings.Contains(irqNameUpper, "MSIX") {
 			msixExcludedCount++
 			continue
 		}
+		
+		// Also skip MSI interrupts (similar to MSI-X, can be single-CPU assigned)
+		// MSI interrupts are often assigned to specific CPUs for performance
+		if strings.Contains(irqNameUpper, "IR-PCI-MSI") {
+			msixExcludedCount++
+			continue
+		}
+		
+		// Identify non-critical hardware devices for informational purposes
+		// These devices (USB, audio, graphics, ME) have low-frequency interrupts
+		// and their imbalance is less concerning, but we still track them
+		isNonCritical := strings.Contains(irqNameUpper, "XHCI_HCD") || // USB controller
+			strings.Contains(irqNameUpper, "MEI_ME") || // Intel Management Engine
+			strings.Contains(irqNameUpper, "I915") || // Intel graphics
+			strings.Contains(irqNameUpper, "SND_HDA") || // Audio
+			strings.Contains(irqNameUpper, "THUNDERBOLT") // Thunderbolt
 
 		// Parse interrupt counts for each CPU
 		total := int64(0)
@@ -1513,14 +1529,18 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 		if total > 0 {
 			imbalanceRatio := float64(maxCPU) / float64(total)
 			if imbalanceRatio > imbalanceThreshold {
-				imbalancedIRQs = append(imbalancedIRQs, map[string]interface{}{
+				irqInfo := map[string]interface{}{
 					"irq_name":        irqName,
 					"irq_number":      fields[0],
 					"max_cpu":         maxCPUIdx,
 					"max_cpu_count":   maxCPU,
 					"total_count":     total,
 					"imbalance_ratio": fmt.Sprintf("%.1f%%", imbalanceRatio*100),
-				})
+				}
+				if isNonCritical {
+					irqInfo["non_critical_device"] = true
+				}
+				imbalancedIRQs = append(imbalancedIRQs, irqInfo)
 			}
 		}
 	}
@@ -1529,20 +1549,44 @@ func (sc *SystemChecker) CheckInterruptsBalance(ctx context.Context) *v1alpha1.C
 	details["imbalance_threshold"] = "60%"
 	details["total_irqs_checked"] = len(lines) - 1
 	details["msix_interrupts_excluded"] = msixExcludedCount
+	details["note_exclusions"] = "MSI-X and MSI interrupts are excluded (designed for single-CPU assignment)"
+
+	// Separate critical vs non-critical imbalanced IRQs
+	criticalIRQs := []map[string]interface{}{}
+	nonCriticalIRQs := []map[string]interface{}{}
+	for _, irq := range imbalancedIRQs {
+		if nonCritical, ok := irq["non_critical_device"].(bool); ok && nonCritical {
+			nonCriticalIRQs = append(nonCriticalIRQs, irq)
+		} else {
+			criticalIRQs = append(criticalIRQs, irq)
+		}
+	}
+	
+	details["critical_imbalanced_irqs"] = criticalIRQs
+	details["non_critical_imbalanced_irqs"] = nonCriticalIRQs
 
 	// Determine status: Warning if imbalanced, never Critical
-	if len(imbalancedIRQs) > 0 {
+	// Only report critical IRQs in the main message, non-critical are informational
+	if len(criticalIRQs) > 0 {
 		result.Status = "Warning"
-		if len(imbalancedIRQs) == 1 {
-			irq := imbalancedIRQs[0]
-			result.Message = fmt.Sprintf("IRQ imbalance detected: %s (%s on CPU%d)", 
+		if len(criticalIRQs) == 1 {
+			irq := criticalIRQs[0]
+			result.Message = fmt.Sprintf("IRQ imbalance detected on critical device: %s (%s on CPU%d)", 
 				irq["irq_name"], irq["imbalance_ratio"], irq["max_cpu"])
 		} else {
-			result.Message = fmt.Sprintf("IRQ imbalance detected: %d devices with >60%% imbalance", len(imbalancedIRQs))
+			result.Message = fmt.Sprintf("IRQ imbalance detected: %d critical devices with >60%% imbalance", len(criticalIRQs))
 		}
-		details["note"] = "IRQ imbalance is common on NUMA systems and OpenShift masters with ovn-kubernetes. MSI-X interrupts are excluded (designed for single-CPU assignment). This is a warning, not critical."
-	} else {
+		if len(nonCriticalIRQs) > 0 {
+			result.Message += fmt.Sprintf(" (%d non-critical devices also imbalanced)", len(nonCriticalIRQs))
+		}
+		details["note"] = "IRQ imbalance on critical devices (NIC, storage) may indicate performance issues. MSI-X/MSI interrupts are excluded. This is a warning, not critical."
+	} else if len(nonCriticalIRQs) > 0 {
+		// Only non-critical devices are imbalanced - this is less concerning
 		result.Status = "Healthy"
+		result.Message = fmt.Sprintf("IRQ imbalance detected only on non-critical devices (%d devices: USB, audio, graphics, ME) - not a performance concern", len(nonCriticalIRQs))
+		details["note"] = "Non-critical hardware devices (USB, audio, graphics, ME) have imbalanced interrupts, but this is not a performance concern due to low interrupt frequency."
+	} else {
+	result.Status = "Healthy"
 		result.Message = fmt.Sprintf("Interrupt balance is normal (%d IRQs checked)", len(lines)-1)
 	}
 
@@ -1574,42 +1618,42 @@ func (sc *SystemChecker) CheckCPUStealTime(ctx context.Context) *v1alpha1.CheckR
 	stats1, err := readCPUStats(ctx)
 	if err != nil {
 		// Fallback to top if /proc/stat is not accessible
-		command := "top -bn1 | grep -i 'Cpu(s)'"
-		result.Command = command
+	command := "top -bn1 | grep -i 'Cpu(s)'"
+	result.Command = command
 		output, cmdErr := runHostCommand(ctx, command)
 		if cmdErr != nil {
-			cmd := exec.CommandContext(ctx, "sh", "-c", command)
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 			output, cmdErr = cmd.Output()
 			if cmdErr != nil {
-				result.Status = "Warning"
+			result.Status = "Warning"
 				result.Message = fmt.Sprintf("Failed to check CPU steal time: %v (fallback also failed: %v)", err, cmdErr)
 				details["check_source"] = "failed"
-				result.Details = mapToRawExtension(details)
-				return result
-			}
-			details["check_source"] = "container_fallback"
-		} else {
-			details["check_source"] = "host_fallback"
+			result.Details = mapToRawExtension(details)
+			return result
 		}
+			details["check_source"] = "container_fallback"
+	} else {
+			details["check_source"] = "host_fallback"
+	}
 
 		// Parse from top output
-		cpuLine := string(output)
-		details["cpu_line"] = cpuLine
-		stealPercent := 0.0
-		fields := strings.Fields(cpuLine)
-		for i, field := range fields {
-			if strings.Contains(field, "st") && i > 0 {
-				stealStr := strings.Trim(fields[i-1], "%")
+	cpuLine := string(output)
+	details["cpu_line"] = cpuLine
+	stealPercent := 0.0
+	fields := strings.Fields(cpuLine)
+	for i, field := range fields {
+		if strings.Contains(field, "st") && i > 0 {
+			stealStr := strings.Trim(fields[i-1], "%")
 				if steal, parseErr := strconv.ParseFloat(stealStr, 64); parseErr == nil {
-					stealPercent = steal
-					break
-				}
+				stealPercent = steal
+				break
 			}
 		}
+	}
 
-		details["steal_percent"] = stealPercent
-		if stealPercent > 10.0 {
-			result.Status = "Warning"
+	details["steal_percent"] = stealPercent
+	if stealPercent > 10.0 {
+		result.Status = "Warning"
 			result.Message = fmt.Sprintf("High CPU steal time: %.1f%% (using fallback method)", stealPercent)
 		} else {
 			result.Status = "Healthy"
@@ -1826,7 +1870,7 @@ func (sc *SystemChecker) CheckSwapActivity(ctx context.Context) *v1alpha1.CheckR
 				if si > 0 || so > 0 {
 					result.Message = fmt.Sprintf("Minimal swap activity (si: %d, so: %d pages/sec) - normal", si, so)
 				} else {
-					result.Message = "No swap activity detected"
+				result.Message = "No swap activity detected"
 				}
 			}
 		}

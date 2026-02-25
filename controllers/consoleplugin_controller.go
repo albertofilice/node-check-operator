@@ -56,7 +56,7 @@ func (r *ConsolePluginReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	namespace := r.Namespace
 	image := r.Image
 	if image == "" {
-		image = "quay.io/rh_ee_afilice/node-check-operator-console-plugin:v1.0.7"
+		image = "quay.io/rh_ee_afilice/node-check-operator-console-plugin:v1.0.8"
 	}
 
 	// Reconcile Deployment
@@ -417,8 +417,8 @@ func (r *ConsolePluginReconciler) buildDashboardService(name, namespace string) 
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Port:       8082,
-					TargetPort: intstr.FromInt(8082),
+					Port:       31682,
+					TargetPort: intstr.FromInt(31682),
 					Protocol:   corev1.ProtocolTCP,
 					Name:       "dashboard",
 				},
@@ -472,7 +472,7 @@ func (r *ConsolePluginReconciler) buildConsolePluginCR(name, namespace string) *
 					"service": map[string]interface{}{
 						"name":      "node-check-operator-dashboard",
 						"namespace": namespace,
-						"port":      8082,
+						"port":      31682,
 					},
 				},
 			},
@@ -541,8 +541,8 @@ func (r *ConsolePluginReconciler) buildMetricsService(name, namespace string) co
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "metrics",
-					Port:       8080,
-					TargetPort: intstr.FromInt(8080),
+					Port:       31680,
+					TargetPort: intstr.FromInt(31680),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},

@@ -424,7 +424,9 @@ func (hc *HardwareChecker) CheckMemoryErrors(ctx context.Context) *v1alpha1.Chec
 	// Match EDAC errors, MCE (Machine Check Exception), or actual memory errors
 	// Exclude initialization messages and interface names
 	// Exclude: "Giving out device", "Ver:", version numbers, initialization messages, "HANDLING IBECC" during boot
-	command := "dmesg | grep -iE '\\b(EDAC|MCE|memory error|ecc error)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface|Giving out device|Ver:|^\\[\\s*[0-9]+\\.[0-9]+\\]\\s*EDAC.*Ver|^\\[\\s*[0-9]+\\.[0-9]+\\]\\s*EDAC.*v[0-9]|^\\[\\s*[0-9]+\\.[0-9]+\\]\\s*EDAC.*Giving out)' | tail -50"
+	// Exclude: "promiscuous mode" (network interface messages that contain "edac" in the interface name)
+	// Exclude: "HANDLING IBECC MEMORY ERROR" (informational messages, not actual errors)
+	command := "dmesg | grep -iE '\\b(EDAC|MCE|memory error|ecc error)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface|Giving out device|Ver:|promiscuous mode|handling ibecc memory error|^\\[\\s*[0-9]+\\.[0-9]+\\]\\s*EDAC.*Ver|^\\[\\s*[0-9]+\\.[0-9]+\\]\\s*EDAC.*v[0-9]|^\\[\\s*[0-9]+\\.[0-9]+\\]\\s*EDAC.*Giving out)' | tail -50"
 	result.Command = command
 
 	output, err := runHostCommand(ctx, command)
@@ -448,7 +450,8 @@ func (hc *HardwareChecker) CheckMemoryErrors(ctx context.Context) *v1alpha1.Chec
 
 	// Also check journalctl with more specific pattern
 	// Only match actual errors (UE - Uncorrected Errors, Hardware Error), not initialization
-	journalOutput, journalErr := runHostCommand(ctx, "journalctl -k -p err --since '1 hour ago' --no-pager 2>/dev/null | grep -iE '\\b(EDAC.*\\b(UE|Uncorrected|Hardware Error)|MCE:\\s*\\[Hardware Error\\]|memory.*error.*uncorrected)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface|Giving out device)' | tail -50")
+	// Exclude "promiscuous mode" messages (network interface messages)
+	journalOutput, journalErr := runHostCommand(ctx, "journalctl -k -p err --since '1 hour ago' --no-pager 2>/dev/null | grep -iE '\\b(EDAC.*\\b(UE|Uncorrected|Hardware Error)|MCE:\\s*\\[Hardware Error\\]|memory.*error.*uncorrected)' | grep -vE '(macvtap|tun|bridge|@if|veth|interface|Giving out device|promiscuous mode)' | tail -50")
 	if journalErr == nil && len(journalOutput) > 0 {
 		journalLines := strings.TrimSpace(string(journalOutput))
 		if memErrorOutput != "" {
@@ -490,7 +493,25 @@ func (hc *HardwareChecker) CheckMemoryErrors(ctx context.Context) *v1alpha1.Chec
 				continue
 			}
 			
-			// Check timestamp - skip messages from first 10 seconds (initialization)
+			// Skip "promiscuous mode" messages - these are network interface messages, not memory errors
+			// Interface names like "edac89780b724a6" contain "edac" but are not EDAC memory errors
+			if strings.Contains(lower, "promiscuous mode") {
+				continue
+			}
+			
+			// Skip "HANDLING IBECC MEMORY ERROR" - this is informational, not an actual error
+			// It indicates the system is handling an ECC error, but doesn't mean there's a problem
+			if strings.Contains(lower, "handling ibecc memory error") {
+				continue
+			}
+			
+			// Skip lines with only "ADDR" (memory addresses) - these are not errors, just addresses
+			if strings.Contains(lower, "addr") && !strings.Contains(lower, "error") {
+				continue
+			}
+			
+			// Check timestamp - skip initialization messages from first 10 seconds
+			// But allow real errors (UE, MCE) even during initialization
 			if strings.HasPrefix(line, "[") {
 				// Extract timestamp from dmesg format: [seconds.microseconds]
 				parts := strings.SplitN(line, "]", 2)
@@ -498,21 +519,17 @@ func (hc *HardwareChecker) CheckMemoryErrors(ctx context.Context) *v1alpha1.Chec
 					timestampStr := strings.TrimPrefix(parts[0], "[")
 					if timestamp, parseErr := strconv.ParseFloat(timestampStr, 64); parseErr == nil {
 						if timestamp < 10.0 {
-							// Skip initialization messages (first 10 seconds)
-							// But allow "HANDLING IBECC MEMORY ERROR" if it's not initialization
-							if !strings.Contains(lower, "handling ibecc memory error") {
+							// During initialization, only count real errors (UE, MCE, Hardware Error)
+							// Skip informational messages
+							if !strings.Contains(lower, "uncorrected") &&
+								!strings.Contains(lower, "hardware error") &&
+								!strings.Contains(lower, "mce:") &&
+								!strings.Contains(lower, "machine check") {
 								continue
 							}
 						}
 					}
 				}
-			}
-			
-			// Skip "HANDLING IBECC MEMORY ERROR" during initialization (these are informational)
-			// Only count if it's a real error (UE - Uncorrected Error)
-			if strings.Contains(lower, "handling ibecc memory error") {
-				// This is just informational during initialization, skip it
-				continue
 			}
 			
 			seen[line] = true

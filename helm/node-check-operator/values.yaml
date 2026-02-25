@@ -3,12 +3,12 @@ namespace:
 
 image:
   repository: quay.io/rh_ee_afilice/node-check-operator
-  tag: v1.0.7
+  tag: v1.0.8
   pullPolicy: IfNotPresent
 
 consolePluginImage:
   repository: quay.io/rh_ee_afilice/node-check-operator-console-plugin
-  tag: v1.0.7
+  tag: v1.0.8
 
 replicaCount: 1
 

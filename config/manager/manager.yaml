@@ -69,25 +69,25 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: OPERATOR_IMAGE
-          value: quay.io/rh_ee_afilice/node-check-operator:v1.0.7
+          value: quay.io/rh_ee_afilice/node-check-operator:v1.0.8
         - name: CONSOLE_PLUGIN_IMAGE
-          value: quay.io/rh_ee_afilice/node-check-operator-console-plugin:v1.0.7
+          value: quay.io/rh_ee_afilice/node-check-operator-console-plugin:v1.0.8
         - name: ENABLE_OPENSHIFT_FEATURES
           value: "true"
-        image: quay.io/rh_ee_afilice/node-check-operator:v1.0.7
+        image: quay.io/rh_ee_afilice/node-check-operator:v1.0.8
         name: manager
         volumeMounts:
         - name: dashboard-tls
           mountPath: /etc/tls
           readOnly: true
         ports:
-        - containerPort: 8080
+        - containerPort: 31680
           name: metrics
           protocol: TCP
-        - containerPort: 8081
+        - containerPort: 31681
           name: health
           protocol: TCP
-        - containerPort: 8082
+        - containerPort: 31682
           name: dashboard
           protocol: TCP
         resources:

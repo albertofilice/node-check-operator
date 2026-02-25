@@ -67,8 +67,8 @@ func main() {
 	var probeAddr string
 	var mode string
 	var enableOpenShiftFeatures bool = true
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":31680", "The address the metric endpoint binds to.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":31681", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -179,8 +179,8 @@ func main() {
 				},
 				Ports: []corev1.ServicePort{
 					{
-						Port:       8082,
-						TargetPort: intstr.FromInt(8082),
+						Port:       31682,
+						TargetPort: intstr.FromInt(31682),
 						Protocol:   corev1.ProtocolTCP,
 						Name:       "dashboard",
 					},
@@ -210,17 +210,17 @@ func main() {
 		
 		// Start dashboard server asynchronously after a short delay
 		// This gives the Service Serving Certificate Signer time to create the secret
-		dashboardServer := dashboard.NewDashboardServer(mgr.GetClient(), clientset, namespace, 8082)
+		dashboardServer := dashboard.NewDashboardServer(mgr.GetClient(), clientset, namespace, 31682)
 		go func() {
 			setupLog.Info("Waiting for TLS certificates to be created by Service Serving Certificate Signer", "waitSeconds", 15)
 			time.Sleep(15 * time.Second) // Wait for Service Serving Certificate Signer
 			
-			setupLog.Info("Starting dashboard server", "port", 8082)
+			setupLog.Info("Starting dashboard server", "port", 31682)
 			if err := dashboardServer.Start(); err != nil {
 				setupLog.Error(err, "unable to start dashboard server")
 				// Don't exit - the operator can still function without the dashboard
 			} else {
-				setupLog.Info("Dashboard server started successfully", "port", 8082)
+				setupLog.Info("Dashboard server started successfully", "port", 31682)
 			}
 		}()
 	} else if mode == "operator" {
@@ -236,11 +236,11 @@ func main() {
 	// Get image from environment or use default
 	operatorImage := os.Getenv("OPERATOR_IMAGE")
 	if operatorImage == "" {
-		operatorImage = "quay.io/rh_ee_afilice/node-check-operator:v1.0.7"
+		operatorImage = "quay.io/rh_ee_afilice/node-check-operator:v1.0.8"
 	}
 	consolePluginImage := os.Getenv("CONSOLE_PLUGIN_IMAGE")
 	if consolePluginImage == "" {
-		consolePluginImage = "quay.io/rh_ee_afilice/node-check-operator-console-plugin:v1.0.7"
+		consolePluginImage = "quay.io/rh_ee_afilice/node-check-operator-console-plugin:v1.0.8"
 	}
 
 	// Setup controllers based on mode

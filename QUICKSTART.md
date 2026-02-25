@@ -65,7 +65,7 @@ kubectl get nodecheck
 #### Standalone Dashboard
 ```bash
 # Port-forward for direct access
-kubectl port-forward -n node-check-operator-system svc/node-check-operator-dashboard 8082:8082
+kubectl port-forward -n node-check-operator-system svc/node-check-operator-dashboard 8082:31682
 # Open http://localhost:8082
 ```
 

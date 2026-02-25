@@ -43,11 +43,11 @@ spec:
               value: "{{ .Values.enableOpenShiftFeatures }}"
           ports:
             - name: metrics
-              containerPort: 8080
+              containerPort: 31680
             - name: health
-              containerPort: 8081
+              containerPort: 31681
             - name: dashboard
-              containerPort: 8082
+              containerPort: 31682
           volumeMounts:
             - name: dashboard-tls
               mountPath: /etc/tls
